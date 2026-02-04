@@ -1,4 +1,4 @@
-# 📱 Ahara - Food Redistribution & Waste Reduction Platform
+# Ahara - Food Redistribution & Waste Reduction Platform
 
 A **role-aware mobile application** designed to safely redistribute surplus food from **restaurants, events, and institutional kitchens** to **NGOs and community kitchens**.
 
@@ -6,7 +6,7 @@ The platform focuses on **reducing food waste**, **ensuring public health**, and
 
 ---
 
-## 🎯 Key Objectives
+## Key Objectives
 - Reduce edible food waste  
 - Ensure safe and timely food redistribution  
 - Enable transparent accountability among stakeholders  
@@ -15,9 +15,9 @@ The platform focuses on **reducing food waste**, **ensuring public health**, and
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-### 📱 Mobile Application
+### Mobile Application
 - **Flutter** – Cross-platform framework enabling a single codebase for Android and iOS with near-native performance.  
 - **Dart** – Strongly typed language optimized for reactive UI and asynchronous operations.  
 - **Provider** – Lightweight state management for handling authentication, roles, and global app data.  
@@ -26,20 +26,20 @@ The platform focuses on **reducing food waste**, **ensuring public health**, and
 
 ---
 
-### 🧠 Backend
+### Backend
 - **Node.js** – Event-driven runtime supporting scalable and concurrent API handling.  
 - **Express.js** – Minimal framework for building structured REST APIs with clear separation of routes and middleware.  
 - **Firebase Authentication** – Secure identity management with token-based authentication.
 
 ---
 
-### 🗄️ Database
+### Database
 - **MongoDB Atlas** – Cloud-hosted NoSQL database suitable for flexible schemas such as multi-role users, food listings, and audit records.  
 - **Mongoose** – ODM for schema validation and simplified database interaction.
 
 ---
 
-### 🔐 Security & Access Control
+### Security & Access Control
 - **Firebase ID Tokens (JWT)** – Secure API access and session validation.  
 
 **Role-Based Access Control (RBAC):**
@@ -50,7 +50,7 @@ The platform focuses on **reducing food waste**, **ensuring public health**, and
 
 ---
 
-## 🧪 Testing Strategy
+## Testing Strategy
 
 | Test Type              | Tool Used |
 |------------------------|------------|
@@ -61,9 +61,9 @@ The platform focuses on **reducing food waste**, **ensuring public health**, and
 
 ---
 
-## ⚙️ CI/CD Pipeline
+## CI/CD Pipeline
 
-### ✅ Continuous Integration (CI)
+### Continuous Integration (CI)
 **Tool:** GitHub Actions  
 
 Triggered automatically on every Pull Request:
@@ -75,21 +75,21 @@ Triggered automatically on every Pull Request:
 
 ---
 
-### 🚀 Continuous Deployment
+### Continuous Deployment
 - **Backend Deployment:** Render / Railway  
 - **Database Hosting:** MongoDB Atlas  
 - **Mobile Distribution (Optional):** Firebase App Distribution  
 
 ---
 
-## ☁️ Cloud Infrastructure
+## Cloud Infrastructure
 - Managed cloud services minimize operational overhead while supporting scalability.  
 - Environment variables used for secure secrets management.  
 - Stateless API architecture enables horizontal scaling.  
 
 ---
 
-## 🧰 Development Tools
+## Development Tools
 - **Git & GitHub** – Version control and collaborative development  
 - **Postman** – API testing and debugging  
 - **Docker (Optional)** – Containerized local setup  
@@ -97,7 +97,7 @@ Triggered automatically on every Pull Request:
 
 ---
 
-## 📄 Documentation
+## Documentation
 - Software Requirements Specification (SRS)  
 - Architecture Diagram  
 - ER Diagram  
@@ -106,7 +106,7 @@ Triggered automatically on every Pull Request:
 
 ---
 
-## 🌱 Impact
+## Impact
 - Reduces large-scale food wastage  
 - Supports food-insecure communities  
 - Helps lower CO₂ emissions through redistribution  
@@ -114,11 +114,11 @@ Triggered automatically on every Pull Request:
 
 ---
 
-## 👨‍💻 Team
+## Team
 Built by a cross-functional engineering team focusing on **trust, logistics optimization, real-time coordination, and sustainability-driven system design**.
 
 ---
 
-## ✅ One-Line Engineering Summary
+## One-Line Engineering Summary
 
 > *Mealwar leverages a cross-platform mobile architecture with a scalable REST backend to deliver a secure, role-based food redistribution system prioritizing safety, accountability, and sustainability.*
