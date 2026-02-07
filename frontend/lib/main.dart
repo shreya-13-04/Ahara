@@ -13,8 +13,6 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
       
     );
-    print("🔥 Firebase Connected Successfully");
-
     
   } catch (e) {
     debugPrint("Firebase Init Error: $e");
