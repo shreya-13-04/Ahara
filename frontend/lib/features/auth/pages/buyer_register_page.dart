@@ -5,9 +5,10 @@ import 'login_page.dart';
 import 'package:provider/provider.dart';
 import '../../../data/providers/app_auth_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class BuyerRegisterPage extends StatefulWidget {
-
   final String role;
 
   const BuyerRegisterPage({
@@ -19,9 +20,7 @@ class BuyerRegisterPage extends StatefulWidget {
   State<BuyerRegisterPage> createState() => _BuyerRegisterPageState();
 }
 
-
 class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
-
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
@@ -32,6 +31,7 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isDetectingLocation = false;
 
   //---------------------------------------------------------
 
@@ -46,9 +46,76 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
   }
 
   //---------------------------------------------------------
+  /// 🔥 AUTO LOCATION DETECTION (PRODUCTION SAFE)
+  //---------------------------------------------------------
+
+  Future<void> _detectLocation() async {
+    setState(() => _isDetectingLocation = true);
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please enable location services")),
+        );
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location permission denied")),
+          );
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                "Location permanently denied. Enable from device settings."),
+          ),
+        );
+        return;
+      }
+
+      /// Fetch coordinates
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      /// Convert to address
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      Placemark place = placemarks.first;
+
+      String address =
+          "${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
+
+      _locationController.text = address;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to detect location")),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isDetectingLocation = false);
+      }
+    }
+  }
+
+  //---------------------------------------------------------
 
   Future<void> _registerUser() async {
-
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -56,7 +123,6 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
     final auth = context.read<AppAuthProvider>();
 
     try {
-
       final user = await auth.registerUser(
         role: widget.role,
         name: _nameController.text.trim(),
@@ -65,7 +131,6 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
         password: _passwordController.text.trim(),
         location: _locationController.text.trim(),
       );
-
 
       if (!mounted) return;
 
@@ -78,21 +143,14 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
           (route) => false,
         );
       }
-
     } on fb.FirebaseAuthException catch (e) {
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message ?? "Registration failed"),
-        ),
+        SnackBar(content: Text(e.message ?? "Registration failed")),
       );
-
     } finally {
-
       if (mounted) {
         setState(() => _isLoading = false);
       }
-
     }
   }
 
@@ -100,10 +158,8 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: AppColors.background,
-
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -112,24 +168,18 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Form(
           key: _formKey,
-
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               Text(
                 "Join as a ${widget.role[0].toUpperCase()}${widget.role.substring(1)}",
                 style: Theme.of(context).textTheme.headlineLarge,
               ),
-
               const SizedBox(height: 12),
-
               Text(
                 "Create your account to start finding local surplus meals and help reduce waste.",
                 style: TextStyle(
@@ -138,7 +188,6 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
                   height: 1.5,
                 ),
               ),
-
               const SizedBox(height: 48),
 
               _buildLabel("FULL NAME"),
@@ -157,7 +206,7 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
               const SizedBox(height: 28),
 
               //-------------------------------------------------
-              // PASSWORD
+              /// PASSWORD
               //-------------------------------------------------
 
               _buildLabel("PASSWORD"),
@@ -174,11 +223,8 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
                           ? Icons.visibility_off
                           : Icons.visibility,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
                 validator: (value) {
@@ -195,29 +241,36 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
               const SizedBox(height: 28),
 
               //-------------------------------------------------
-              // LOCATION
+              /// 🔥 LOCATION WITH AUTO DETECT BUTTON
               //-------------------------------------------------
 
               _buildLabel("LOCATION"),
 
               TextFormField(
                 controller: _locationController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: "Search your area",
-                  prefixIcon: Icon(Icons.location_on_outlined),
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  suffixIcon: IconButton(
+                    icon: _isDetectingLocation
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.my_location),
+                    onPressed: _isDetectingLocation ? null : _detectLocation,
+                  ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Please specify your location";
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    value == null || value.isEmpty
+                        ? "Please specify your location"
+                        : null,
               ),
 
               const SizedBox(height: 48),
 
               //-------------------------------------------------
-              // REGISTER BUTTON
+              /// REGISTER BUTTON
               //-------------------------------------------------
 
               SizedBox(
@@ -233,31 +286,22 @@ class _BuyerRegisterPageState extends State<BuyerRegisterPage> {
 
               const SizedBox(height: 32),
 
-              //-------------------------------------------------
-              // LOGIN NAV
-              //-------------------------------------------------
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-
                   Text(
                     "Already registered? ",
                     style: TextStyle(
                       color: AppColors.textLight.withOpacity(0.8),
                     ),
                   ),
-
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const LoginPage(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const LoginPage()),
                       );
                     },
-
                     child: const Text(
                       "Login",
                       style: TextStyle(

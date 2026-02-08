@@ -1,9 +1,8 @@
 plugins {
-    id("com.android.application")
-    id("kotlin-android")
-    id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services") version "4.4.4" apply false
+    id("com.android.application") version "8.3.2" apply false
+    id("com.google.gms.google-services") version "4.3.15" apply false
 }
+
 allprojects {
     repositories {
         google()
@@ -18,10 +17,19 @@ val newBuildDir: Directory =
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
+
+    // ✅ FORCE SAFE ANDROIDX VERSIONS (Prevents Runtime Crashes)
+    configurations.all {
+        resolutionStrategy {
+            force("androidx.core:core-ktx:1.13.1")
+            force("androidx.core:core:1.13.1")
+            force("androidx.browser:browser:1.8.0")
+        }
+    }
+
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
-}
-subprojects {
+
     project.evaluationDependsOn(":app")
 }
 
