@@ -60,18 +60,33 @@ The platform focuses on **reducing food waste**, **ensuring public health**, and
 | Manual Testing         | Structured Test Case Documentation |
 
 ---
-
 ## CI/CD Pipeline
 
 ### Continuous Integration (CI)
-**Tool:** GitHub Actions  
+**Tool:** Jenkins  
 
-Triggered automatically on every Pull Request:
+The project uses a Jenkins-driven CI pipeline to automate development workflows and maintain code reliability.
 
-- Static code quality checks  
-- Backend test execution  
+Triggered automatically on every Pull Request and code merge:
+
+- Static code quality analysis  
+- Automated backend test execution  
 - Build verification  
 - Dependency validation  
+- Early failure detection to prevent unstable releases  
+
+---
+
+### Continuous Deployment (CD)
+
+Jenkins pipelines are configured to support controlled deployment workflows, ensuring that only validated builds progress toward production environments.
+
+Key capabilities include:
+
+- Automated build generation  
+- Environment-based deployment readiness  
+- Scalable pipeline architecture  
+- Reduced manual intervention  
 
 ---
 
