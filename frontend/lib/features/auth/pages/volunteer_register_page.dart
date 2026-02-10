@@ -3,6 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/styles/app_colors.dart';
 import 'login_page.dart';
 import '../../../shared/widgets/phone_input_field.dart';
+import 'package:provider/provider.dart';
+import '../../../data/providers/app_auth_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 
 class VolunteerRegisterPage extends StatefulWidget {
   const VolunteerRegisterPage({super.key});
@@ -22,6 +25,7 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
   String? _selectedTransport;
   DateTime? _selectedDate;
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   final List<String> _transportModes = ['Car', 'Bike', 'Cycle', 'Walk'];
 
@@ -70,6 +74,69 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
       age--;
     }
     return age >= 18;
+  }
+
+  Future<void> _registerVolunteer() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Age validation for Car/Bike
+    if ((_selectedTransport == 'Car' || _selectedTransport == 'Bike') &&
+        _selectedDate != null) {
+      if (!_isEligible(_selectedDate!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You must be 18+ to volunteer with Car/Bike"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    setState(() => _isLoading = true);
+
+    final auth = context.read<AppAuthProvider>();
+
+    try {
+      final user = await auth.registerUser(
+        role: 'volunteer',
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        location:
+            _selectedTransport ??
+            'Walk', // Using transport as location placeholder
+      );
+
+      if (!mounted) return;
+
+      if (user != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Registration successful! Please login."),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    } on fb.FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message ?? "Registration failed"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -260,26 +327,17 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "Registration successful! Please login.",
+                      onPressed: _isLoading ? null : _registerVolunteer,
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
                               ),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LoginPage(),
-                            ),
-                            (route) => false,
-                          );
-                        }
-                      },
-                      child: const Text("Create Volunteer Account"),
+                            )
+                          : const Text("Create Volunteer Account"),
                     ),
                   ),
                   const SizedBox(height: 32),

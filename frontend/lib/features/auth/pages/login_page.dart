@@ -5,6 +5,8 @@ import 'register_selection_page.dart';
 import 'package:provider/provider.dart';
 import '../../../data/providers/app_auth_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import '../../seller/pages/seller_dashboard_page.dart';
+import '../../volunteer/pages/volunteer_dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,7 +16,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -32,7 +33,6 @@ class _LoginPageState extends State<LoginPage> {
   //-------------------------------------------------------------
 
   Future<void> _login() async {
-
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -40,7 +40,6 @@ class _LoginPageState extends State<LoginPage> {
     final auth = context.read<AppAuthProvider>();
 
     try {
-
       final user = await auth.login(
         _emailController.text.trim(),
         _passwordController.text.trim(),
@@ -49,29 +48,40 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (user != null) {
+        // Fetch user role from Firestore
+        final role = await auth.getUserRole(user.uid);
+
+        if (!mounted) return;
+
+        // Route based on role
+        Widget destination;
+        switch (role?.toLowerCase()) {
+          case 'seller':
+            destination = const SellerDashboardPage();
+            break;
+          case 'volunteer':
+            destination = const VolunteerDashboardPage();
+            break;
+          case 'buyer':
+          default:
+            destination = const BuyerDashboardPage();
+            break;
+        }
+
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (_) => const BuyerDashboardPage(),
-          ),
+          MaterialPageRoute(builder: (_) => destination),
           (route) => false,
         );
       }
-
     } on fb.FirebaseAuthException catch (e) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message ?? "Login failed"),
-        ),
-      );
-
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? "Login failed")));
     } finally {
-
       if (mounted) {
         setState(() => _isLoading = false);
       }
-
     }
   }
 
@@ -79,7 +89,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(),
       body: SingleChildScrollView(
@@ -91,7 +100,6 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               Text(
                 "Welcome Back",
                 style: Theme.of(context).textTheme.headlineLarge,
@@ -113,7 +121,6 @@ class _LoginPageState extends State<LoginPage> {
               //-------------------------------------------------------------
               // EMAIL
               //-------------------------------------------------------------
-
               _buildLabel("EMAIL ADDRESS"),
 
               TextFormField(
@@ -139,7 +146,6 @@ class _LoginPageState extends State<LoginPage> {
               //-------------------------------------------------------------
               // PASSWORD
               //-------------------------------------------------------------
-
               _buildLabel("PASSWORD"),
 
               TextFormField(
@@ -185,11 +191,9 @@ class _LoginPageState extends State<LoginPage> {
               //-------------------------------------------------------------
               // LOGIN BUTTON
               //-------------------------------------------------------------
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-
                   onPressed: _isLoading ? null : _login,
 
                   child: _isLoading
@@ -209,66 +213,78 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 20),
 
-Row(
-  children: [
-    Expanded(child: Divider()),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Text("OR"),
-    ),
-    Expanded(child: Divider()),
-  ],
-),
+              Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text("OR"),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
 
-const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-SizedBox(
-  width: double.infinity,
-  height: 55,
-  child: OutlinedButton.icon(
-    icon: Image.network(
-      "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
-      height: 24,
-    ),
-    label: const Text(
-      "Sign in with Google",
-      style: TextStyle(fontSize: 16),
-    ),
-    onPressed: () async {
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  icon: Image.network(
+                    "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
+                    height: 24,
+                  ),
+                  label: const Text(
+                    "Sign in with Google",
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  onPressed: () async {
+                    final auth = context.read<AppAuthProvider>();
 
-      final auth = context.read<AppAuthProvider>();
+                    try {
+                      final user = await auth.signInWithGoogle();
 
-      try {
+                      if (user != null && context.mounted) {
+                        // Fetch user role from Firestore
+                        final role = await auth.getUserRole(user.uid);
 
-        final user = await auth.signInWithGoogle();
+                        if (!context.mounted) return;
 
-        if (user != null && context.mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const BuyerDashboardPage(),
-            ),
-          );
-        }
+                        // Route based on role
+                        Widget destination;
+                        switch (role?.toLowerCase()) {
+                          case 'seller':
+                            destination = const SellerDashboardPage();
+                            break;
+                          case 'volunteer':
+                            destination = const VolunteerDashboardPage();
+                            break;
+                          case 'buyer':
+                          default:
+                            destination = const BuyerDashboardPage();
+                            break;
+                        }
 
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Google Sign-In Failed")),
-        );
-      }
-    },
-  ),
-),
-
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => destination),
+                        );
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Google Sign-In Failed")),
+                      );
+                    }
+                  },
+                ),
+              ),
 
               //-------------------------------------------------------------
               // REGISTER
               //-------------------------------------------------------------
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-
                   Text(
                     "Don't have an account? ",
                     style: TextStyle(
@@ -310,13 +326,9 @@ SizedBox(
   //-------------------------------------------------------------
 
   Widget _buildLabel(String label) {
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 10.0, left: 4.0),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium,
-      ),
+      child: Text(label, style: Theme.of(context).textTheme.labelMedium),
     );
   }
 }

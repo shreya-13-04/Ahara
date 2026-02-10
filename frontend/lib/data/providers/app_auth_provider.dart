@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/google_auth_service.dart';
 
 class AppAuthProvider extends ChangeNotifier {
-
   //---------------------------------------------------------
   /// SERVICES
   //---------------------------------------------------------
@@ -33,16 +33,13 @@ class AppAuthProvider extends ChangeNotifier {
   //---------------------------------------------------------
 
   Future<User?> login(String email, String password) async {
-
     _setLoading(true);
 
     try {
       final user = await _authService.login(email, password);
       return user;
-
     } catch (e) {
       rethrow;
-
     } finally {
       _setLoading(false);
     }
@@ -61,11 +58,9 @@ class AppAuthProvider extends ChangeNotifier {
     required String password,
     required String location,
   }) async {
-
     _setLoading(true);
 
     try {
-
       final user = await _authService.registerUser(
         role: role,
         name: name,
@@ -76,10 +71,8 @@ class AppAuthProvider extends ChangeNotifier {
       );
 
       return user;
-
     } catch (e) {
       rethrow;
-
     } finally {
       _setLoading(false);
     }
@@ -92,22 +85,42 @@ class AppAuthProvider extends ChangeNotifier {
   //---------------------------------------------------------
 
   Future<User?> signInWithGoogle() async {
-
     _setLoading(true);
 
     try {
-
       final user = await _googleService.signInWithGoogle();
 
       return user;
-
     } catch (e) {
       rethrow;
-
     } finally {
       _setLoading(false);
     }
   }
+
+  //---------------------------------------------------------
+  /// GET USER ROLE FROM FIRESTORE
+  //---------------------------------------------------------
+
+  Future<String?> getUserRole(String uid) async {
+    try {
+      if (_auth.currentUser == null) return null;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (doc.exists) {
+        return doc.data()?['role'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching user role: $e');
+      return null;
+    }
+  }
+
   //---------------------------------------------------------
   /// LOGOUT
   //---------------------------------------------------------
@@ -117,7 +130,6 @@ class AppAuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  
   //---------------------------------------------------------
   /// INTERNAL LOADING HANDLER
   //---------------------------------------------------------
