@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/google_auth_service.dart';
+import '../services/backend_service.dart';
 
 class AppAuthProvider extends ChangeNotifier {
 
@@ -12,6 +13,17 @@ class AppAuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
   final GoogleAuthService _googleService = GoogleAuthService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  AppAuthProvider() {
+    _auth.authStateChanges().listen((user) {
+      if (user != null) {
+        refreshMongoUser();
+      } else {
+        _mongoUser = null;
+        notifyListeners();
+      }
+    });
+  }
 
   //---------------------------------------------------------
   /// STATE
@@ -24,6 +36,25 @@ class AppAuthProvider extends ChangeNotifier {
   Stream<User?> get authState => _auth.authStateChanges();
 
   User? get currentUser => _auth.currentUser;
+
+  Map<String, dynamic>? _mongoUser;
+  Map<String, dynamic>? get mongoUser => _mongoUser;
+
+  Map<String, dynamic>? _mongoProfile;
+  Map<String, dynamic>? get mongoProfile => _mongoProfile;
+
+  Future<void> refreshMongoUser() async {
+    if (currentUser == null) return;
+    
+    try {
+      final data = await BackendService.getUserProfile(currentUser!.uid);
+      _mongoUser = data['user'];
+      _mongoProfile = data['profile'];
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error refreshing mongo user: $e");
+    }
+  }
 
   //---------------------------------------------------------
   /// EMAIL LOGIN
@@ -38,6 +69,9 @@ class AppAuthProvider extends ChangeNotifier {
 
     try {
       final user = await _authService.login(email, password);
+      if (user != null) {
+        await refreshMongoUser();
+      }
       return user;
 
     } catch (e) {
@@ -84,6 +118,10 @@ class AppAuthProvider extends ChangeNotifier {
         transportMode: transportMode,
         dateOfBirth: dateOfBirth,
       );
+
+      if (user != null) {
+        await refreshMongoUser();
+      }
 
       return user;
 

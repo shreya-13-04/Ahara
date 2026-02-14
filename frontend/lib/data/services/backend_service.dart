@@ -98,6 +98,25 @@ class BackendService {
     }
   }
 
+  static Future<Map<String, dynamic>> getSellerStats(String sellerId) async {
+    final url = Uri.parse("$baseUrl/listings/seller-stats?sellerId=$sellerId");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to fetch dashboard stats");
+    }
+  }
+
   static Future<Map<String, dynamic>> getUserProfile(String firebaseUid) async {
     final url = Uri.parse("$baseUrl/users/firebase/$firebaseUid");
 
