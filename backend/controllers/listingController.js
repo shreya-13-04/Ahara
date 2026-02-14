@@ -1,4 +1,6 @@
 const Listing = require("../models/Listing");
+const Order = require("../models/Order");
+const SellerProfile = require("../models/SellerProfile");
 
 // Create a new listing
 exports.createListing = async (req, res) => {
@@ -200,5 +202,68 @@ exports.getCompletedListings = async (req, res) => {
         res.status(200).json(listings);
     } catch (error) {
         res.status(500).json({ error: "Server error", details: error.message });
+    }
+};
+
+// Get Seller Dashboard Stats
+exports.getSellerStats = async (req, res) => {
+    try {
+        const { sellerId } = req.query;
+        if (!sellerId) {
+            return res.status(400).json({ error: "sellerId is required" });
+        }
+
+        const now = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+
+        // 1. Active Listings Count
+        const activeListingsCount = await Listing.countDocuments({
+            sellerId,
+            status: "active",
+            remainingQuantity: { $gt: 0 },
+            "pickupWindow.to": { $gt: now }
+        });
+
+        // 2. Pending Orders Count
+        const pendingOrdersCount = await Order.countDocuments({
+            sellerId,
+            status: { $in: ["placed", "awaiting_volunteer", "volunteer_assigned", "volunteer_accepted", "picked_up", "in_transit"] }
+        });
+
+        // 3. Avg Rating from SellerProfile
+        const sellerProfile = await SellerProfile.findOne({ userId: sellerId });
+        const avgRating = sellerProfile ? sellerProfile.stats.avgRating : 0;
+
+        // 4. Monthly Earnings (last 30 days)
+        const mongoose = require('mongoose');
+        const monthlyEarningsResult = await Order.aggregate([
+            {
+                $match: {
+                    sellerId: new mongoose.Types.ObjectId(sellerId),
+                    status: "delivered",
+                    updatedAt: { $gte: thirtyDaysAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalEarnings: { $sum: "$pricing.total" }
+                }
+            }
+        ]);
+
+        const monthlyEarnings = monthlyEarningsResult.length > 0 ? monthlyEarningsResult[0].totalEarnings : 0;
+
+        res.status(200).json({
+            activeListings: activeListingsCount,
+            pendingOrders: pendingOrdersCount,
+            avgRating: avgRating,
+            monthlyEarnings: monthlyEarnings
+        });
+
+    } catch (error) {
+        console.error("Error fetching seller stats:", error);
+        res.status(500).json({ error: "Server error fetching statistics", details: error.message });
     }
 };

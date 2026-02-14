@@ -7,5 +7,6 @@ router.put("/update/:id", listingController.updateListing);
 router.get("/active", listingController.getActiveListings);
 router.get("/expired", listingController.getExpiredListings);
 router.get("/completed", listingController.getCompletedListings);
+router.get("/seller-stats", listingController.getSellerStats);
 
 module.exports = router;
