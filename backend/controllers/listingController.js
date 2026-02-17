@@ -1,6 +1,7 @@
 const Listing = require("../models/Listing");
 const Order = require("../models/Order");
 const SellerProfile = require("../models/SellerProfile");
+const PerishabilityEngine = require("../utils/perishabilityEngine");
 
 // Create a new listing
 exports.createListing = async (req, res) => {
@@ -46,7 +47,24 @@ exports.createListing = async (req, res) => {
             return res.status(400).json({ error: "totalQuantity must be a number" });
         }
 
-        // 4. Handle Geo JSON safely
+        // 4. Safety Validation
+        const safetyValidation = PerishabilityEngine.validateSafety(
+            normalizedFoodType,
+            new Date(pickupWindow.from),
+            new Date(pickupWindow.to)
+        );
+
+        if (!safetyValidation.isValid) {
+            console.warn(`Safety Rejection: ${safetyValidation.details}`);
+            return res.status(400).json({
+                error: "Safety validation failed",
+                translationKey: safetyValidation.translationKey,
+                details: safetyValidation.details,
+                safetyThreshold: safetyValidation.safetyThreshold
+            });
+        }
+
+        // 5. Handle Geo JSON safely
         let geoData = null;
         if (pickupGeo && pickupGeo.coordinates && Array.isArray(pickupGeo.coordinates) && pickupGeo.coordinates.length === 2) {
             geoData = {
@@ -76,7 +94,10 @@ exports.createListing = async (req, res) => {
             description: description || "",
             images: images || [],
             options: options || { selfPickupAvailable: true, deliveryAvailable: true },
-            status: "active"
+            status: "active",
+            isSafetyValidated: true,
+            safetyStatus: "validated",
+            safetyThreshold: safetyValidation.safetyThreshold
         };
 
         if (geoData) {
@@ -155,7 +176,9 @@ exports.getActiveListings = async (req, res) => {
 
         if (sellerId) query.sellerId = sellerId;
 
-        const listings = await Listing.find(query).sort({ "pickupWindow.to": 1 });
+        const listings = await Listing.find(query)
+            .populate("sellerProfileId")
+            .sort({ "pickupWindow.to": 1 });
 
         res.status(200).json(listings);
     } catch (error) {
@@ -163,20 +186,18 @@ exports.getActiveListings = async (req, res) => {
     }
 };
 
-// Get expired listings
+// Get expired listings - based on time, not status
 exports.getExpiredListings = async (req, res) => {
     try {
         const { sellerId } = req.query;
         const now = new Date();
         const query = {
-            status: "active",
-            remainingQuantity: { $gt: 0 },
             "pickupWindow.to": { $lte: now }
         };
 
         if (sellerId) query.sellerId = sellerId;
 
-        const listings = await Listing.find(query);
+        const listings = await Listing.find(query).sort({ "pickupWindow.to": -1 });
 
         res.status(200).json(listings);
     } catch (error) {
@@ -201,6 +222,42 @@ exports.getCompletedListings = async (req, res) => {
 
         res.status(200).json(listings);
     } catch (error) {
+        res.status(500).json({ error: "Server error", details: error.message });
+    }
+};
+
+// Relist an expired listing with new pickup window
+exports.relistListing = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { pickupWindow } = req.body;
+
+        if (!pickupWindow || !pickupWindow.from || !pickupWindow.to) {
+            return res.status(400).json({ error: "pickupWindow with from and to is required" });
+        }
+
+        // Get the original listing to restore totalQuantity
+        const originalListing = await Listing.findById(id);
+        if (!originalListing) {
+            return res.status(404).json({ error: "Listing not found" });
+        }
+
+        const updatedListing = await Listing.findByIdAndUpdate(
+            id,
+            {
+                pickupWindow,
+                status: "active",
+                remainingQuantity: originalListing.totalQuantity
+            },
+            { new: true, runValidators: true }
+        );
+
+        res.status(200).json({
+            message: "Listing relisted successfully",
+            listing: updatedListing
+        });
+    } catch (error) {
+        console.error("Error relisting:", error);
         res.status(500).json({ error: "Server error", details: error.message });
     }
 };
