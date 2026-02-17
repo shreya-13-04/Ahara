@@ -9,4 +9,8 @@ router.get("/seller/:sellerId", orderController.getSellerOrders);
 router.patch("/:id/status", orderController.updateOrderStatus);
 router.post("/:id/cancel", orderController.cancelOrder);
 
+// Volunteer specific
+router.get("/volunteer/requests/:volunteerId", orderController.getVolunteerRescueRequests);
+router.post("/:id/accept", orderController.acceptRescueRequest);
+
 module.exports = router;

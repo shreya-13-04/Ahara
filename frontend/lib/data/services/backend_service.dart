@@ -358,4 +358,45 @@ class BackendService {
       throw Exception(errorBody['error'] ?? "Failed to cancel order");
     }
   }
+
+  // --- Volunteer Methods ---
+
+  static Future<List<Map<String, dynamic>>> getVolunteerRescueRequests(String volunteerId) async {
+    final url = Uri.parse("$baseUrl/orders/volunteer/requests/$volunteerId");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception("Failed to fetch rescue requests");
+    }
+  }
+
+  static Future<Map<String, dynamic>> acceptRescueRequest(String orderId, String volunteerId) async {
+    final url = Uri.parse("$baseUrl/orders/$orderId/accept");
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode({"volunteerId": volunteerId}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to accept rescue request");
+    }
+  }
 }

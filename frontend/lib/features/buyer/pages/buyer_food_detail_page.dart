@@ -759,63 +759,54 @@ class BuyerFoodDetailPage extends StatelessWidget {
 
   void _showOrderDialog(BuildContext context) {
     int quantity = 1;
-    final maxQuantity = listing?['remainingQuantity'] ?? 1;
-    final pricing = listing?['pricing'] ?? {};
-    final isFree = pricing['isFree'] ?? false;
-    final pricePerItem = pricing['discountedPrice'] ?? 0;
-    bool isPlacing = false;
+    final maxQuantity = listing!['remainingQuantity'] ?? 1;
+    final pricePerItem = (listing!['pricing']?['discountedPrice'] ?? 0).toDouble();
+    final isFree = listing!['pricing']?['isFree'] ?? false;
+
+    int currentStep = 1; // 1: Quantity, 2: Logistics, 3: Summary
+    String fulfillment = "self_pickup"; // default
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
-          final total = isFree ? 0 : (pricePerItem * quantity);
+          bool isPlacing = false;
+          double total = pricePerItem * quantity;
 
-          return AlertDialog(
-            title: Text(
-              'Place Order',
-              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-            ),
-            content: Column(
+          Widget buildQuantityStep() {
+            return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Select quantity to order',
-                  style: GoogleFonts.inter(fontSize: 14),
+                  'Select Quantity',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      onPressed: quantity > 1
-                          ? () => setState(() => quantity--)
-                          : null,
+                      onPressed: quantity > 1 ? () => setState(() => quantity--) : null,
                       icon: const Icon(Icons.remove_circle_outline),
                       color: AppColors.primary,
                       iconSize: 32,
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                       decoration: BoxDecoration(
                         border: Border.all(color: AppColors.primary),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '$quantity',
-                        style: GoogleFonts.inter(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     ),
                     IconButton(
-                      onPressed: quantity < maxQuantity
-                          ? () => setState(() => quantity++)
-                          : null,
+                      onPressed: quantity < maxQuantity ? () => setState(() => quantity++) : null,
                       icon: const Icon(Icons.add_circle_outline),
                       color: AppColors.primary,
                       iconSize: 32,
@@ -823,72 +814,126 @@ class BuyerFoodDetailPage extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
+                Text('Max available: $maxQuantity', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600)),
+              ],
+            );
+          }
+
+          Widget buildLogisticsStep() {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'Max: $maxQuantity',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  'Choose Delivery Method',
+                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total:',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        isFree ? 'FREE' : '₹$total',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isFree ? Colors.green : AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 16),
+                RadioListTile<String>(
+                  title: const Text('Self-Pickup'),
+                  subtitle: const Text('You collect the food from donor'),
+                  value: 'self_pickup',
+                  groupValue: fulfillment,
+                  onChanged: (val) => setState(() => fulfillment = val!),
+                  activeColor: AppColors.primary,
+                ),
+                RadioListTile<String>(
+                  title: const Text('Volunteer Delivery'),
+                  subtitle: const Text('Request a volunteer for delivery'),
+                  value: 'volunteer_delivery',
+                  groupValue: fulfillment,
+                  onChanged: (val) => setState(() => fulfillment = val!),
+                  activeColor: AppColors.primary,
                 ),
               ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: isPlacing ? null : () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: isPlacing
-                    ? null
-                    : () async {
-                        setState(() => isPlacing = true);
-                        await _placeOrder(context, quantity);
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isFree ? Colors.green : AppColors.primary,
+            );
+          }
+
+          Widget buildSummaryStep() {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Order Summary', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Subtotal ($quantity items):'),
+                    Text(isFree ? 'FREE' : '₹$total'),
+                  ],
                 ),
-                child: isPlacing
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        isFree ? 'Claim' : 'Place Order',
-                        style: const TextStyle(color: Colors.white),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Logistics:'),
+                    Text(fulfillment == 'self_pickup' ? 'Self-Pickup' : 'Volunteer Delivery'),
+                  ],
+                ),
+                if (fulfillment == 'volunteer_delivery') ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Delivery Fee:'),
+                      Text('FREE', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+                const Divider(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Total Amount:', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                    Text(
+                      isFree ? 'FREE' : '₹$total',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isFree ? Colors.green : AppColors.primary,
                       ),
-              ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: currentStep == 1
+                ? buildQuantityStep()
+                : currentStep == 2
+                    ? buildLogisticsStep()
+                    : buildSummaryStep(),
+            actions: [
+              if (currentStep > 1)
+                TextButton(
+                  onPressed: () => setState(() => currentStep--),
+                  child: const Text('Back'),
+                ),
+              if (currentStep < 3)
+                ElevatedButton(
+                  onPressed: () => setState(() => currentStep++),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  child: const Text('Next', style: TextStyle(color: Colors.white)),
+                ),
+              if (currentStep == 3)
+                ElevatedButton(
+                  onPressed: isPlacing
+                      ? null
+                      : () async {
+                          setState(() => isPlacing = true);
+                          await _placeOrder(context, quantity, fulfillment);
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isFree ? Colors.green : AppColors.primary,
+                  ),
+                  child: isPlacing
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text(isFree ? 'Claim' : 'Confirm Order', style: const TextStyle(color: Colors.white)),
+                ),
             ],
           );
         },
@@ -896,7 +941,7 @@ class BuyerFoodDetailPage extends StatelessWidget {
     );
   }
 
-  Future<void> _placeOrder(BuildContext context, int quantity) async {
+  Future<void> _placeOrder(BuildContext context, int quantity, String fulfillment) async {
     try {
       // Get buyer ID from auth provider
       final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
@@ -906,22 +951,40 @@ class BuyerFoodDetailPage extends StatelessWidget {
         throw Exception('User not logged in');
       }
 
+      // Ensure IDs are strings
+      final listingIdStr = listing!['_id'].toString();
+      final buyerIdStr = buyerId.toString();
+      
+      // Calculate pricing with fallbacks
+      final discountedPrice = (listing!['pricing']?['discountedPrice'] ?? 
+                               listing!['pricing']?['originalPrice'] ?? 
+                               0).toDouble();
+      final itemTotal = discountedPrice * quantity;
+
       final orderData = {
-        "listingId": listing!['_id'],
-        "buyerId": buyerId,
+        "listingId": listingIdStr,
+        "buyerId": buyerIdStr,
         "quantityOrdered": quantity,
-        "fulfillment": "self_pickup",
+        "fulfillment": fulfillment,
         "pickup": {
-          "addressText": listing!['pickupAddressText'] ?? 'Pickup location',
+          "addressText": listing!['pickupAddressText'] ?? listing!['pickupAddress']?['addressText'] ?? 'Pickup location',
           "scheduledAt": listing!['pickupWindow']?['to'],
+          if (listing!['pickupGeo'] != null) "geo": listing!['pickupGeo'],
         },
         "pricing": {
-          "itemTotal": (listing!['pricing']?['discountedPrice'] ?? 0) * quantity,
-          "deliveryFee": 0,
-          "platformFee": 0,
-          "total": (listing!['pricing']?['discountedPrice'] ?? 0) * quantity,
+          "itemTotal": itemTotal,
+          "deliveryFee": 0.0,
+          "platformFee": 0.0,
+          "total": itemTotal,
         },
       };
+
+      // Debug: Print order data
+      print("=== ORDER DATA ===");
+      print("Order data: $orderData");
+      print("Listing pricing: ${listing!['pricing']}");
+      if (listing!['pickupGeo'] != null) print("Pickup Geo: ${listing!['pickupGeo']}");
+      print("==================");
 
       final response = await BackendService.createOrder(orderData);
 

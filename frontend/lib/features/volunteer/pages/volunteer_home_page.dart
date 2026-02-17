@@ -9,6 +9,8 @@ import '../../common/pages/landing_page.dart';
 import 'volunteer_profile_page.dart';
 import 'volunteer_ratings_page.dart';
 import 'volunteer_orders_page.dart';
+import '../../../data/services/backend_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class VolunteerHomePage extends StatefulWidget {
   const VolunteerHomePage({super.key});
@@ -77,6 +79,8 @@ class _VolunteerHomePageState
                     _badgeSection(),
                     const SizedBox(height: 24),
                     _alertBanner(),
+                    const SizedBox(height: 24),
+                    _rescueRequestsSection(),
                     const SizedBox(height: 24),
                     _quickActions(),
                   ],
@@ -373,6 +377,134 @@ class _VolunteerHomePageState
   //----------------------------------------------------------
   // Quick Actions
   //----------------------------------------------------------
+
+  //----------------------------------------------------------
+  // Rescue Requests Section
+  //----------------------------------------------------------
+
+  Widget _rescueRequestsSection() {
+    final auth = Provider.of<AppAuthProvider>(context, listen: false);
+    final volunteerId = auth.mongoUser?['_id'];
+
+    if (volunteerId == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Rescue Requests',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: () => setState(() {}),
+              child: const Text('Refresh'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: BackendService.getVolunteerRescueRequests(volunteerId),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red));
+            }
+
+            final requests = snapshot.data ?? [];
+            if (requests.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: const Text('No active rescue requests nearby.', textAlign: TextAlign.center),
+              );
+            }
+
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: requests.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final req = requests[index];
+                final orderId = req['data']?['orderId'];
+
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundColor: Color(0xFFFFEBEE),
+                        child: Icon(Icons.emergency, color: Colors.red),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(req['title'] ?? 'Rescue Request', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text(req['message'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => _acceptRescueRequest(orderId, volunteerId),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                        child: const Text('Accept', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _acceptRescueRequest(String orderId, String volunteerId) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      await BackendService.acceptRescueRequest(orderId, volunteerId);
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Rescue request accepted! Go to My Orders to track.')),
+        );
+        setState(() {}); // Refresh list
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to accept: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
   Widget _quickActions() {
     return Column(
