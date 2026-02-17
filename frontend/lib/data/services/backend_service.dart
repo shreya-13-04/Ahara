@@ -6,7 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 class BackendService {
   /// ⚠️ UPDATED: Added /api and removed trailing slash
-  static const String baseUrl = "https://52d6-2405-201-e015-e079-552b-9e41-e783-debe.ngrok-free.app/api";
+  static const String baseUrl = "https://329c-115-243-91-113.ngrok-free.app/api";
 
   static Future<void> createUser({
     required String firebaseUID,
@@ -98,6 +98,26 @@ class BackendService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> getAllActiveListings() async {
+    final url = Uri.parse("$baseUrl/listings/active");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to fetch active listings");
+    }
+  }
+
   static Future<Map<String, dynamic>> getSellerStats(String sellerId) async {
     final url = Uri.parse("$baseUrl/listings/seller-stats?sellerId=$sellerId");
 
@@ -172,5 +192,23 @@ class BackendService {
     // Remote the /api from baseUrl to get the root
     final root = baseUrl.replaceAll('/api', '');
     return "$root$path";
+  }
+
+  static Future<void> relistListing(String id, Map<String, dynamic> pickupWindow) async {
+    final url = Uri.parse("$baseUrl/listings/relist/$id");
+
+    final response = await http.put(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode({"pickupWindow": pickupWindow}),
+    );
+
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to relist listing");
+    }
   }
 }
