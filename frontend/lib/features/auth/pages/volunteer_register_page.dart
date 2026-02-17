@@ -6,6 +6,7 @@ import '../../../shared/styles/app_colors.dart';
 import 'login_page.dart';
 import '../../../shared/widgets/phone_input_field.dart';
 import '../../../data/providers/app_auth_provider.dart';
+import '../../../core/localization/language_provider.dart';
 
 class VolunteerRegisterPage extends StatefulWidget {
   const VolunteerRegisterPage({super.key});
@@ -136,7 +137,7 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                     value: _selectedTransport,
                     hint: Text(
                       "Select transport mode",
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.inter(
                         color: AppColors.textLight.withOpacity(0.4),
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
@@ -147,7 +148,7 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                         value: mode,
                         child: Text(
                           mode,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.inter(
                             color: AppColors.textDark,
                             fontSize: 14,
                           ),
@@ -295,6 +296,7 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                                   : _locationController.text.trim(),
                               transportMode: _selectedTransport,
                               dateOfBirth: _selectedDate?.toIso8601String(),
+                              language: context.read<LanguageProvider>().locale.languageCode,
                             );
                             
                             if (!mounted) return;

@@ -6,6 +6,7 @@ import '../../../shared/styles/app_colors.dart';
 import 'login_page.dart';
 import '../../../shared/widgets/phone_input_field.dart';
 import '../../../data/providers/app_auth_provider.dart';
+import '../../../core/localization/language_provider.dart';
 
 class SellerRegisterPage extends StatefulWidget {
   const SellerRegisterPage({super.key});
@@ -102,7 +103,7 @@ class _SellerRegisterPageState extends State<SellerRegisterPage> {
                     value: _selectedType,
                     hint: Text(
                       "Select business type",
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.inter(
                         color: AppColors.textLight.withOpacity(0.4),
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
@@ -113,7 +114,7 @@ class _SellerRegisterPageState extends State<SellerRegisterPage> {
                         value: type,
                         child: Text(
                           type,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.inter(
                             color: AppColors.textDark,
                             fontSize: 14,
                           ),
@@ -250,6 +251,7 @@ class _SellerRegisterPageState extends State<SellerRegisterPage> {
                               businessName: _nameController.text.trim(),
                               businessType: _selectedType,
                               fssaiNumber: _fssaiController.text.trim(),
+                              language: context.read<LanguageProvider>().locale.languageCode,
                             );
                             
                             if (!mounted) return;
