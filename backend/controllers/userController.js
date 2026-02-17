@@ -15,8 +15,13 @@ exports.createUser = async (req, res) => {
       email,
       role,
       phone,
-      location
-    } = req.body.firebaseUID;
+      location,
+      businessName,
+      businessType,
+      fssaiNumber,
+      transportMode,
+      dateOfBirth
+    } = req.body;
 
 
     //---------------------------------------------------
@@ -59,7 +64,12 @@ exports.createUser = async (req, res) => {
       email: email || "",
       role: role || "buyer",
       phone: phone || "",
-      location: location || ""
+      location: location || "",
+      businessName: businessName || null,
+      businessType: businessType || null,
+      fssaiNumber: fssaiNumber || null,
+      transportMode: transportMode || null,
+      dateOfBirth: dateOfBirth || null
 
     });
 
@@ -85,7 +95,7 @@ exports.createUser = async (req, res) => {
 
       // Happens when unique index hits
       const user = await User.findOne({
-        firebaseUid: req.body.firebaseUID
+        firebaseUid: req.body.firebaseUid
       });
 
       return res.status(200).json({

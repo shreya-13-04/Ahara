@@ -14,6 +14,15 @@ const userSchema = new mongoose.Schema({
   phone: String,
   location: String,
 
+  // Seller-specific fields
+  businessName: String,
+  businessType: String,
+  fssaiNumber: String,
+
+  // Volunteer-specific fields
+  transportMode: String,
+  dateOfBirth: String,
+
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);

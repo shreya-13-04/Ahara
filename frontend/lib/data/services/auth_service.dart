@@ -38,6 +38,11 @@ class AuthService {
     required String email,
     required String password,
     required String location,
+    String? businessName,
+    String? businessType,
+    String? fssaiNumber,
+    String? transportMode,
+    String? dateOfBirth,
   }) async {
 
     //-----------------------------------------------------
@@ -81,6 +86,11 @@ class AuthService {
       name: name,
       phone: phone,
       location: location,
+      businessName: businessName,
+      businessType: businessType,
+      fssaiNumber: fssaiNumber,
+      transportMode: transportMode,
+      dateOfBirth: dateOfBirth,
     );
 
     return user;
@@ -108,11 +118,34 @@ class AuthService {
     required String name,
     required String phone,
     required String location,
+    String? businessName,
+    String? businessType,
+    String? fssaiNumber,
+    String? transportMode,
+    String? dateOfBirth,
   }) async {
 
     try {
 
       final token = await user.getIdToken();
+
+      final body = {
+        "firebaseUid": user.uid,
+        "email": user.email,
+        "name": name,
+        "role": role,
+        "phone": phone,
+        "location": location,
+      };
+
+      // Add seller-specific fields if provided
+      if (businessName != null) body["businessName"] = businessName;
+      if (businessType != null) body["businessType"] = businessType;
+      if (fssaiNumber != null) body["fssaiNumber"] = fssaiNumber;
+      
+      // Add volunteer-specific fields if provided
+      if (transportMode != null) body["transportMode"] = transportMode;
+      if (dateOfBirth != null) body["dateOfBirth"] = dateOfBirth;
 
       final response = await http.post(
         Uri.parse("$backendBaseUrl/users/create"),
@@ -120,14 +153,7 @@ class AuthService {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
-        body: jsonEncode({
-          "firebaseUid": user.uid,
-          "email": user.email,
-          "name": name,
-          "role": role,
-          "phone": phone,
-          "location": location,
-        }),
+        body: jsonEncode(body),
       );
 
       if (response.statusCode != 200 && response.statusCode != 201) {

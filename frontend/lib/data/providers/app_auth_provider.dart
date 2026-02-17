@@ -57,6 +57,11 @@ class AppAuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String location,
+    String? businessName,
+    String? businessType,
+    String? fssaiNumber,
+    String? transportMode,
+    String? dateOfBirth,
   }) async {
     _setLoading(true);
 
@@ -68,6 +73,11 @@ class AppAuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         location: location,
+        businessName: businessName,
+        businessType: businessType,
+        fssaiNumber: fssaiNumber,
+        transportMode: transportMode,
+        dateOfBirth: dateOfBirth,
       );
 
       return user;

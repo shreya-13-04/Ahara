@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 import '../../../shared/styles/app_colors.dart';
 import 'login_page.dart';
 import '../../../shared/widgets/phone_input_field.dart';
@@ -146,7 +146,15 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
         _selectedTransport == 'Car' || _selectedTransport == 'Bike';
 
     return Scaffold(
-      appBar: AppBar(),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textDark),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
@@ -168,7 +176,7 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                   Text(
                     "Offer your time and help distribute food surplus to the neighborhood.",
                     style: TextStyle(
-                      color: AppColors.textLight.withOpacity(0.8),
+                      color: AppColors.textLight,
                       fontSize: 15,
                       height: 1.5,
                     ),
@@ -179,9 +187,11 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                   _buildLabel("FULL NAME"),
                   TextFormField(
                     controller: _nameController,
+                    maxLength: 50,
                     decoration: const InputDecoration(
                       hintText: "Enter your full name",
                       prefixIcon: Icon(Icons.person_outline),
+                      counterText: '',
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty)
@@ -195,24 +205,11 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                   _buildLabel("MODE OF TRANSPORT"),
                   DropdownButtonFormField<String>(
                     value: _selectedTransport,
-                    hint: Text(
-                      "Select transport mode",
-                      style: GoogleFonts.plusJakartaSans(
-                        color: AppColors.textLight.withOpacity(0.4),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
+                    hint: const Text("Select transport mode"),
                     items: _transportModes.map((mode) {
                       return DropdownMenuItem(
                         value: mode,
-                        child: Text(
-                          mode,
-                          style: GoogleFonts.plusJakartaSans(
-                            color: AppColors.textDark,
-                            fontSize: 14,
-                          ),
-                        ),
+                        child: Text(mode),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -265,9 +262,11 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    maxLength: 100,
                     decoration: const InputDecoration(
                       hintText: "name@example.com",
                       prefixIcon: Icon(Icons.email_outlined),
+                      counterText: '',
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty)
@@ -284,9 +283,13 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                     controller: _phoneController,
                     label: "CONTACT NUMBER",
                     hintText: "12345 67890",
+                    maxLength: 10,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return "Please enter your number";
+                      }
+                      if (value.length != 10) {
+                        return "Phone number must be 10 digits";
                       }
                       return null;
                     },
@@ -298,6 +301,7 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    maxLength: 50,
                     decoration: InputDecoration(
                       hintText: "At least 6 characters",
                       prefixIcon: const Icon(Icons.lock_outline),
@@ -312,6 +316,7 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                           () => _obscurePassword = !_obscurePassword,
                         ),
                       ),
+                      counterText: '',
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty)
@@ -326,18 +331,12 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                   // Register Button
                   SizedBox(
                     width: double.infinity,
+                    height: 58,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _registerVolunteer,
                       child: _isLoading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text("Create Volunteer Account"),
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text("Create Account"),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -365,7 +364,6 @@ class _VolunteerRegisterPageState extends State<VolunteerRegisterPage> {
                           style: TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
                           ),
                         ),
                       ),
