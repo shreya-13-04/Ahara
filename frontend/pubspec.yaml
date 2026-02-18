@@ -16,7 +16,7 @@ dependencies:
 
   google_fonts: ^6.2.1
   url_launcher: ^6.3.2
-  flutter_dotenv: ^5.1.0
+  flutter_dotenv: ^6.0.0
 
   # Firebase
   firebase_core: ^4.4.0
@@ -38,7 +38,7 @@ dependencies:
   http: ^1.2.0
   image_picker: ^1.0.7
   shared_preferences: ^2.5.4
-  speech_to_text: ^6.6.2
+  speech_to_text: ^7.3.0
   flutter_tts: ^4.2.2
   razorpay_flutter: ^1.4.1
 
@@ -54,3 +54,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - .env

@@ -9,6 +9,7 @@ import '../../common/pages/landing_page.dart';
 import 'volunteer_profile_page.dart';
 import 'volunteer_ratings_page.dart';
 import 'volunteer_orders_page.dart';
+import '../../../data/services/backend_service.dart';
 
 class VolunteerHomePage extends StatefulWidget {
   const VolunteerHomePage({super.key});
@@ -41,9 +42,8 @@ class _VolunteerHomePageState
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-                  //--------------------------------------------------
-                  // Header
-                  //--------------------------------------------------
+
+                  // HEADER
                   Row(
                     mainAxisAlignment:
                         MainAxisAlignment.spaceBetween,
@@ -57,11 +57,7 @@ class _VolunteerHomePageState
                           ),
                         ),
                       ),
-
-                      // Voice Mode Toggle
                       _voiceModeToggle(),
-
-                      // Availability Toggle
                       _availabilityToggle(),
                     ],
                   ),
@@ -78,6 +74,8 @@ class _VolunteerHomePageState
                     const SizedBox(height: 24),
                     _alertBanner(),
                     const SizedBox(height: 24),
+                    _rescueRequestsSection(),
+                    const SizedBox(height: 24),
                     _quickActions(),
                   ],
                 ],
@@ -90,7 +88,7 @@ class _VolunteerHomePageState
   }
 
   //----------------------------------------------------------
-  // Voice Toggle
+  // VOICE MODE
   //----------------------------------------------------------
 
   Widget _voiceModeToggle() {
@@ -105,10 +103,8 @@ class _VolunteerHomePageState
         color: voiceService.isListening
             ? Colors.red
             : AppColors.primary,
-        size: 28,
       ),
-      onPressed: () => _toggleVoiceMode(),
-      tooltip: "Voice Assistance",
+      onPressed: _toggleVoiceMode,
     );
   }
 
@@ -126,7 +122,7 @@ class _VolunteerHomePageState
       await voiceService.speak(
         AppLocalizations.of(context)!
                 .translate("voice_mode_on") ??
-            "Voice mode activated. How can I help?",
+            "Voice mode activated",
         languageCode:
             langProvider.locale.languageCode,
       );
@@ -139,9 +135,6 @@ class _VolunteerHomePageState
 
   void _handleVoiceCommand(String words) {
     final lower = words.toLowerCase();
-    final voiceService =
-        Provider.of<VoiceService>(context,
-            listen: false);
 
     if (lower.contains("logout")) {
       _performLogout();
@@ -159,8 +152,7 @@ class _VolunteerHomePageState
             builder: (_) =>
                 const VolunteerRatingsPage()),
       );
-    } else if (lower.contains("deliver") ||
-        lower.contains("order")) {
+    } else if (lower.contains("order")) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -171,8 +163,6 @@ class _VolunteerHomePageState
       setState(() => isAvailable = true);
     } else if (lower.contains("unavailable")) {
       setState(() => isAvailable = false);
-    } else if (lower.contains("refresh")) {
-      setState(() {});
     }
   }
 
@@ -193,7 +183,7 @@ class _VolunteerHomePageState
   }
 
   //----------------------------------------------------------
-  // Availability
+  // AVAILABILITY
   //----------------------------------------------------------
 
   Widget _availabilityToggle() {
@@ -202,30 +192,24 @@ class _VolunteerHomePageState
         Text(
           AppLocalizations.of(context)!
               .translate("availability"),
-          style: const TextStyle(
-              fontWeight: FontWeight.w500),
         ),
         const SizedBox(width: 8),
         Switch(
           value: isAvailable,
           activeColor: AppColors.primary,
-          onChanged: (value) {
-            setState(() {
-              isAvailable = value;
-            });
-          },
+          onChanged: (value) =>
+              setState(() => isAvailable = value),
         ),
       ],
     );
   }
 
   //----------------------------------------------------------
-  // Inactive UI
+  // INACTIVE UI
   //----------------------------------------------------------
 
   Widget _inactiveState() {
     return Container(
-      margin: const EdgeInsets.only(top: 40),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -251,7 +235,7 @@ class _VolunteerHomePageState
   }
 
   //----------------------------------------------------------
-  // Dashboard Cards
+  // DASHBOARD CARDS
   //----------------------------------------------------------
 
   Widget _dashboardCards() {
@@ -264,236 +248,199 @@ class _VolunteerHomePageState
       mainAxisSpacing: 12,
       childAspectRatio: 2.5,
       children: [
-        _StatCard(
-            title: AppLocalizations.of(context)!
-                .translate("deliveries"),
-            value: '47',
-            color: Colors.blue),
-        _StatCard(
-            title: AppLocalizations.of(context)!
-                .translate("today"),
-            value: '3',
-            color: Colors.green),
-        _StatCard(
-            title: AppLocalizations.of(context)!
-                .translate("ratings"),
-            value: '4.8',
-            color: Colors.orange),
+        _statCard("deliveries", "47",
+            Colors.blue),
+        _statCard("today", "3",
+            Colors.green),
+        _statCard("ratings", "4.8",
+            Colors.orange),
       ],
     );
   }
 
-  //----------------------------------------------------------
-  // Badge Section
-  //----------------------------------------------------------
-
-  Widget _badgeSection() {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          AppLocalizations.of(context)!
-              .translate("your_badges"),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _BadgeChip(
-                icon: Icons.verified,
-                label: AppLocalizations.of(
-                        context)!
-                    .translate(
-                        'verified_volunteer'),
-                color: Colors.green),
-            _BadgeChip(
-                icon: Icons.star,
-                label: AppLocalizations.of(
-                        context)!
-                    .translate(
-                        'top_volunteer'),
-                color: Colors.amber),
-            _BadgeChip(
-                icon: Icons.local_shipping,
-                label: AppLocalizations.of(
-                        context)!
-                    .translate(
-                        'fifty_deliveries'),
-                color: Colors.blue),
-            _BadgeChip(
-                icon: Icons.flash_on,
-                label: AppLocalizations.of(
-                        context)!
-                    .translate(
-                        'perfect_streak'),
-                color: Colors.orange),
-          ],
-        ),
-      ],
-    );
-  }
-
-  //----------------------------------------------------------
-  // Alert Banner
-  //----------------------------------------------------------
-
-  Widget _alertBanner() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF4D6),
-        borderRadius:
-            BorderRadius.circular(16),
-        border: Border.all(
-            color: const Color(0xFFFFD066)),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-              Icons.notifications_active,
-              color: Colors.orange),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              AppLocalizations.of(context)!
-                  .translate(
-                      'new_requests_banner'),
-              style: const TextStyle(
-                  fontWeight:
-                      FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  //----------------------------------------------------------
-  // Quick Actions
-  //----------------------------------------------------------
-
-  Widget _quickActions() {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          AppLocalizations.of(context)!
-              .translate(
-                  "quick_actions"),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight:
-                FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _QuickAction(
-                icon: Icons.list_alt,
-                label: AppLocalizations.of(
-                        context)!
-                    .translate(
-                        "view_orders")),
-            const SizedBox(width: 12),
-            _QuickAction(
-                icon:
-                    Icons.verified_user,
-                label: AppLocalizations.of(
-                        context)!
-                    .translate(
-                        "verification")),
-            const SizedBox(width: 12),
-            _QuickAction(
-                icon: Icons.star,
-                label: AppLocalizations.of(
-                        context)!
-                    .translate(
-                        "ratings")),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _StatCard({
-    required String title,
-    required String value,
-    required Color color,
-  }) {
+  Widget _statCard(
+      String key, String value, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(12),
+        border:
+            Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment:
+            MainAxisAlignment.center,
         children: [
           Text(
             value,
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.bold,
+              fontWeight:
+                  FontWeight.bold,
               color: color,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            title,
-            style: const TextStyle(fontSize: 11),
-            textAlign: TextAlign.center,
+            AppLocalizations.of(context)!
+                .translate(key),
+            style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey),
           ),
         ],
       ),
     );
   }
 
-  Widget _BadgeChip({
-    required String label,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Chip(
-      avatar: Icon(icon, size: 16, color: Colors.white),
-      label: Text(label),
-      backgroundColor: color,
-      labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
+  //----------------------------------------------------------
+  // BADGES
+  //----------------------------------------------------------
+
+  Widget _badgeSection() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _badge(Icons.verified,
+            'verified_volunteer'),
+        _badge(Icons.star,
+            'top_volunteer'),
+        _badge(Icons.local_shipping,
+            'fifty_deliveries'),
+        _badge(Icons.flash_on,
+            'perfect_streak'),
+      ],
     );
   }
 
-  Widget _QuickAction({
-    required IconData icon,
-    required String label,
-  }) {
-    return GestureDetector(
-      onTap: () {},
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget _badge(IconData icon, String key) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+              horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color:
+            AppColors.primary.withOpacity(0.1),
+        borderRadius:
+            BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize:
+            MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 20),
-          ),
-          const SizedBox(height: 4),
+          Icon(icon,
+              size: 16,
+              color: AppColors.primary),
+          const SizedBox(width: 6),
           Text(
-            label,
-            style: const TextStyle(fontSize: 10),
-            textAlign: TextAlign.center,
+            AppLocalizations.of(context)!
+                .translate(key),
+            style: const TextStyle(
+                fontSize: 12),
           ),
         ],
       ),
+    );
+  }
+
+  //----------------------------------------------------------
+  // QUICK ACTIONS
+  //----------------------------------------------------------
+
+  Widget _quickActions() {
+    return Row(
+      children: [
+        _action(Icons.list_alt,
+            const VolunteerOrdersPage()),
+        const SizedBox(width: 12),
+        _action(Icons.star,
+            const VolunteerRatingsPage()),
+        const SizedBox(width: 12),
+        _action(Icons.person,
+            const VolunteerProfilePage()),
+      ],
+    );
+  }
+
+  Widget _action(
+      IconData icon, Widget page) {
+    return Expanded(
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => page),
+        ),
+        child: Container(
+          padding:
+              const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius:
+                BorderRadius.circular(12),
+          ),
+          child: Icon(icon,
+              size: 32,
+              color: AppColors.primary),
+        ),
+      ),
+    );
+  }
+
+  //----------------------------------------------------------
+  // RESCUE REQUESTS
+  //----------------------------------------------------------
+
+  Widget _rescueRequestsSection() {
+    final auth =
+        Provider.of<AppAuthProvider>(context,
+            listen: false);
+    final volunteerId =
+        auth.mongoUser?['_id'];
+
+    if (volunteerId == null)
+      return const SizedBox.shrink();
+
+    return FutureBuilder<
+        List<Map<String, dynamic>>>(
+      future: BackendService
+          .getVolunteerRescueRequests(
+              volunteerId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData)
+          return const CircularProgressIndicator();
+
+        final requests =
+            snapshot.data ?? [];
+
+        if (requests.isEmpty) {
+          return const Text(
+              "No active rescue requests nearby.");
+        }
+
+        return Column(
+          children: requests
+              .map((req) => ListTile(
+                    title:
+                        Text(req['title'] ??
+                            "Rescue Request"),
+                    trailing: ElevatedButton(
+                      onPressed: () =>
+                          BackendService
+                              .acceptRescueRequest(
+                                  req['data']
+                                      ?['orderId'],
+                                  volunteerId),
+                      child:
+                          const Text("Accept"),
+                    ),
+                  ))
+              .toList(),
+        );
+      },
     );
   }
 }

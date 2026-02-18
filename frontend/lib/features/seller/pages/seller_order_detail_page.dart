@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../data/models/order_model.dart';
 import '../../../shared/styles/app_colors.dart';
 
 class SellerOrderDetailPage extends StatefulWidget {
-  final Order order;
+  final Map<String, dynamic> order;
   const SellerOrderDetailPage({super.key, required this.order});
 
   @override
@@ -12,15 +11,15 @@ class SellerOrderDetailPage extends StatefulWidget {
 }
 
 class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
-  late OrderStatus _currentStatus;
+  late String _currentStatus;
 
   @override
   void initState() {
     super.initState();
-    _currentStatus = widget.order.status;
+    _currentStatus = widget.order['status'] ?? 'pending';
   }
 
-  void _updateStatus(OrderStatus newStatus) {
+  void _updateStatus(String newStatus) {
     setState(() {
       _currentStatus = newStatus;
     });
@@ -28,7 +27,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          "Order status updated to ${newStatus.name.replaceAll('_', ' ')}",
+          "Order status updated to ${newStatus.replaceAll('_', ' ')}",
         ),
       ),
     );
@@ -69,6 +68,11 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
   }
 
   Widget _buildOrderHeader() {
+    final foodName = widget.order['listingId']?['foodName'] ?? "Unknown Item";
+    final orderId = widget.order['_id'].toString();
+    final createdAt = DateTime.parse(widget.order['createdAt']);
+    final totalAmount = widget.order['pricing']?['total'] ?? 0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -91,7 +95,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Order #${widget.order.id.substring(widget.order.id.length - 6).toUpperCase()}",
+                    "Order #${orderId.substring(orderId.length - 6).toUpperCase()}",
                     style: TextStyle(
                       fontSize: 14,
                       color: AppColors.textLight.withOpacity(0.6),
@@ -100,7 +104,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    widget.order.listingName,
+                    foodName,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -119,7 +123,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _currentStatus.name.toUpperCase().replaceAll('_', ' '),
+                  _currentStatus.toUpperCase().replaceAll('_', ' '),
                   style: TextStyle(
                     color: _getStatusColor(_currentStatus),
                     fontSize: 10,
@@ -138,15 +142,15 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
             children: [
               _buildHeaderStat(
                 "Amount",
-                "₹${widget.order.totalAmount.toStringAsFixed(0)}",
+                "₹${totalAmount.toString()}",
               ),
               _buildHeaderStat(
                 "Date",
-                DateFormat('MMM dd, yyyy').format(widget.order.createdAt),
+                DateFormat('MMM dd, yyyy').format(createdAt),
               ),
               _buildHeaderStat(
                 "Time",
-                DateFormat('hh:mm a').format(widget.order.createdAt),
+                DateFormat('hh:mm a').format(createdAt),
               ),
             ],
           ),
@@ -180,15 +184,16 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
   }
 
   Widget _buildStatusStepper() {
-    final List<OrderStatus> stages = [
-      OrderStatus.pending,
-      OrderStatus.confirmed,
-      OrderStatus.picked_up,
-      OrderStatus.delivered,
+    final List<String> stages = [
+      "placed",
+      "awaiting_volunteer",
+      "volunteer_assigned",
+      "picked_up",
+      "delivered",
     ];
 
     int currentIndex = stages.indexOf(_currentStatus);
-    if (_currentStatus == OrderStatus.cancelled) currentIndex = -1;
+    if (_currentStatus == "cancelled") currentIndex = -1;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,7 +320,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    widget.order.buyerName,
+                    widget.order['buyerId']?['name'] ?? "Unknown Buyer",
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -377,9 +382,9 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            widget.order.pickupInstructions.isEmpty
+            (widget.order['specialInstructions'] ?? "").isEmpty
                 ? "No specific instructions provided. Please wait at the specified location."
-                : widget.order.pickupInstructions,
+                : widget.order['specialInstructions'],
             style: TextStyle(
               fontSize: 14,
               color: AppColors.textDark.withOpacity(0.7),
@@ -392,26 +397,31 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
   }
 
   Widget _buildActionButtons() {
-    if (_currentStatus == OrderStatus.delivered ||
-        _currentStatus == OrderStatus.cancelled) {
+    if (_currentStatus == "delivered" ||
+        _currentStatus == "cancelled") {
       return const SizedBox.shrink();
     }
 
     String nextButtonText = "";
-    OrderStatus? nextStatus;
+    String? nextStatus;
 
     switch (_currentStatus) {
-      case OrderStatus.pending:
+      case "placed":
+      case "pending":
         nextButtonText = "Confirm Order";
-        nextStatus = OrderStatus.confirmed;
+        nextStatus = "awaiting_volunteer";
         break;
-      case OrderStatus.confirmed:
+      case "awaiting_volunteer":
+        nextButtonText = "Volunteer Requested";
+        nextStatus = null; 
+        break;
+      case "volunteer_assigned":
         nextButtonText = "Mark as Picked Up";
-        nextStatus = OrderStatus.picked_up;
+        nextStatus = "picked_up";
         break;
-      case OrderStatus.picked_up:
+      case "picked_up":
         nextButtonText = "Mark as Delivered";
-        nextStatus = OrderStatus.delivered;
+        nextStatus = "delivered";
         break;
       default:
         break;
@@ -443,13 +453,13 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
             ),
           ),
         ),
-        if (_currentStatus == OrderStatus.pending) ...[
+        if (_currentStatus == "placed" || _currentStatus == "pending") ...[
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             height: 56,
             child: TextButton(
-              onPressed: () => _updateStatus(OrderStatus.cancelled),
+              onPressed: () => _updateStatus("cancelled"),
               child: const Text(
                 "Cancel Order",
                 style: TextStyle(
@@ -464,30 +474,39 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
     );
   }
 
-  Color _getStatusColor(OrderStatus status) {
+  Color _getStatusColor(String status) {
     switch (status) {
-      case OrderStatus.pending:
+      case "placed":
+      case "pending":
         return Colors.orange;
-      case OrderStatus.confirmed:
+      case "awaiting_volunteer":
         return Colors.blue;
-      case OrderStatus.picked_up:
+      case "volunteer_assigned":
         return Colors.indigo;
-      case OrderStatus.delivered:
+      case "picked_up":
+        return Colors.purple;
+      case "delivered":
+      case "completed":
         return Colors.green;
-      case OrderStatus.cancelled:
+      case "cancelled":
         return Colors.redAccent;
+      default:
+        return Colors.grey;
     }
   }
 
-  String _getStageLabel(OrderStatus status) {
+  String _getStageLabel(String status) {
     switch (status) {
-      case OrderStatus.pending:
-        return "Pending";
-      case OrderStatus.confirmed:
-        return "Confirmed";
-      case OrderStatus.picked_up:
+      case "placed":
+      case "pending":
+        return "Placed";
+      case "awaiting_volunteer":
+        return "Requested";
+      case "volunteer_assigned":
+        return "Assigned";
+      case "picked_up":
         return "Picked Up";
-      case OrderStatus.delivered:
+      case "delivered":
         return "Delivered";
       default:
         return "";

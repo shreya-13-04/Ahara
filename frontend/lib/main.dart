@@ -10,7 +10,7 @@ import 'features/buyer/pages/buyer_dashboard_page.dart';
 import 'features/seller/pages/seller_dashboard_page.dart';
 import 'features/volunteer/pages/volunteer_dashboard_page.dart';
 import 'features/auth/pages/login_page.dart';
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'data/providers/app_auth_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,6 +21,10 @@ import 'data/services/backend_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🔥 LOAD ENV FILE FIRST
+  await dotenv.load(fileName: ".env");
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -130,7 +134,6 @@ class AuthWrapper extends StatelessWidget {
                 final lp = Provider.of<LanguageProvider>(context, listen: false);
                 final auth = Provider.of<AppAuthProvider>(context, listen: false);
                 
-                // Only sync from cloud IF the user hasn't explicitly changed it locally
                 if (!lp.isManualSelection) {
                   if (language != null && lp.locale.languageCode != language) {
                     lp.setLanguage(language, isManual: false);
@@ -139,7 +142,6 @@ class AuthWrapper extends StatelessWidget {
                     lp.setUiMode(uiMode, isManual: false);
                   }
                 } else {
-                  // If local is manual but different from cloud, push local TO cloud
                   if ((language != null && lp.locale.languageCode != language) ||
                       (uiMode != null && lp.uiMode != uiMode)) {
                     debugPrint("Syncing local manual preference to cloud: ${lp.locale.languageCode}");
@@ -165,7 +167,6 @@ class AuthWrapper extends StatelessWidget {
               return const BuyerDashboardPage();
             }
 
-            /// Temporarily route others to landing
             return const LandingPage();
           },
         );

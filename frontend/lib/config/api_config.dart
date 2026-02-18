@@ -1,22 +1,22 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConfig {
-  // 🔥 Set this to true when using ngrok
-  static const bool useNgrok = true;
 
+  /// Returns the backend base URL
   static String get baseUrl {
-    if (useNgrok) {
-      return "https://cushy-unvitiating-pearly.ngrok-free.dev/api";
+    final envUrl = dotenv.env['BASE_URL'];
+
+    // If .env variable is missing, use fallback
+    if (envUrl == null || envUrl.isEmpty) {
+      if (kDebugMode) {
+        print("⚠️ BASE_URL not found in .env, using fallback.");
+      }
+
+      // Default fallback for local development
+      return "http://localhost:5000/api";
     }
 
-    // Default local setup
-    if (kIsWeb) {
-      return "http://localhost:5000/api";
-    } else if (Platform.isAndroid) {
-      return "http://10.0.2.2:5000/api";
-    } else {
-      return "http://localhost:5000/api";
-    }
+    return envUrl;
   }
 }
