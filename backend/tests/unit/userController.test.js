@@ -2,11 +2,13 @@ const userController = require('../../controllers/userController');
 const User = require('../../models/User');
 const SellerProfile = require('../../models/SellerProfile');
 const BuyerProfile = require('../../models/BuyerProfile');
+const VolunteerProfile = require('../../models/VolunteerProfile');
 const httpMocks = require('node-mocks-http');
 
 jest.mock('../../models/User');
-jest.mock('../../models/SellerProfile');
 jest.mock('../../models/BuyerProfile');
+jest.mock('../../models/SellerProfile');
+jest.mock('../../models/VolunteerProfile');
 
 describe('User Controller - createUser', () => {
     let req, res;

@@ -42,7 +42,7 @@ describe('Listing Routes Integration Tests', () => {
                 coordinates: [77.5946, 12.9716]
             }
         });
-    });
+    }, 60000);
 
     // Cleanup after all tests
     afterAll(async () => {
@@ -54,7 +54,7 @@ describe('Listing Routes Integration Tests', () => {
             console.error('Final cleanup error:', e.message);
         }
         await disconnect();
-    });
+    }, 60000);
 
     it('POST /api/listings/create should create a new food donation', async () => {
         const res = await request(app)

@@ -11,6 +11,16 @@ describe('Order Routes Integration Tests', () => {
     let seller, buyer, listing, sellerProfile;
 
     beforeAll(async () => {
+        // Mock session to avoid "Transaction numbers are only allowed on a replica set member" error
+        const mockSession = {
+            startTransaction: jest.fn(),
+            commitTransaction: jest.fn(),
+            abortTransaction: jest.fn(),
+            endSession: jest.fn(),
+            inTransaction: () => false,
+        };
+        jest.spyOn(mongoose, 'startSession').mockResolvedValue(mockSession);
+
         await connect();
         try {
             await User.deleteMany({});

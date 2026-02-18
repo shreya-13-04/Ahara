@@ -9,12 +9,13 @@ describe('User Routes Integration Tests', () => {
     
     beforeAll(async () => {
         await connect();
-    });
+    }, 60000);
 
     afterAll(async () => {
         await disconnect();
-    });
+    }, 60000);
 
+    // Clear database before each test
     beforeEach(async () => {
         try {
             await User.deleteMany({});
