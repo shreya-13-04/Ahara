@@ -43,7 +43,10 @@ exports.createUser = async (req, res) => {
     // Check if user already exists
     const existingUser = await User.findOne({ firebaseUid });
     if (existingUser) {
-      return res.status(200).json(existingUser);
+      return res.status(200).json({
+        message: "User already exists",
+        user: existingUser
+      });
     }
 
     // Parse location (if GeoJSON object)
@@ -201,6 +204,30 @@ exports.getUserByFirebaseUid = async (req, res) => {
   }
 };
 
+// ======================================================
+// GET USER PREFERENCES
+// ======================================================
+
+exports.getPreferences = async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const user = await User.findOne({ firebaseUid: uid });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Return default preferences if not set
+    const preferences = {
+      language: user.language || 'en',
+      uiMode: user.uiMode || 'standard'
+    };
+
+    return res.status(200).json({ preferences });
+  } catch (error) {
+    return res.status(500).json({ error: "Server error", details: error.message });
+  }
+};
 
 // ======================================================
 // UPDATE USER PREFERENCES
