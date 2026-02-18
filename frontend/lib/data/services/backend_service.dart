@@ -401,6 +401,34 @@ class BackendService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> getVolunteerOrders(
+    String volunteerId, {
+    String? status,
+  }) async {
+    final statusQuery = status != null ? "?status=$status" : "";
+    final url = Uri.parse("$baseUrl/orders/volunteer/$volunteerId$statusQuery");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return List<Map<String, dynamic>>.from(data);
+      } else if (data is Map && data.containsKey('orders')) {
+        return List<Map<String, dynamic>>.from(data['orders']);
+      }
+      return [];
+    } else {
+      throw Exception("Failed to fetch volunteer orders");
+    }
+  }
+
   static Future<void> acceptRescueRequest(
     String requestId,
     String volunteerId,
