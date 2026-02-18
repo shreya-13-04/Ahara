@@ -45,6 +45,7 @@ exports.createOrder = async (req, res) => {
 
         // 4. Create the order
         const initialStatus = fulfillment === "volunteer_delivery" ? "awaiting_volunteer" : "placed";
+        const otp = Math.floor(1000 + Math.random() * 9000).toString(); // Generate 4-digit OTP
 
         const newOrder = new Order({
             listingId,
@@ -57,6 +58,7 @@ exports.createOrder = async (req, res) => {
             drop,
             pricing,
             specialInstructions,
+            handoverOtp: otp,
             timeline: { placedAt: new Date() }
         });
 
@@ -71,6 +73,19 @@ exports.createOrder = async (req, res) => {
         }
 
         await listing.save({ session });
+
+        // 6. Notify Seller
+        await Notification.create([{
+            userId: listing.sellerId,
+            type: "order_update",
+            title: "📦 New Order Received",
+            message: `Someone just ordered ${quantityOrdered}x ${listing.foodName}!`,
+            data: {
+                orderId: newOrder._id,
+                listingId: listing._id,
+                action: "view_order"
+            }
+        }], { session });
 
         await session.commitTransaction();
         session.endSession();
@@ -126,8 +141,8 @@ exports.getBuyerOrders = async (req, res) => {
         if (status) query.status = status;
 
         const orders = await Order.find(query)
-            .populate('listingId')
-            .populate('sellerId', 'email firebaseUid')
+            .populate("listingId", "foodName images pricing pickupAddressText")
+            .populate('sellerId', 'name email firebaseUid')
             .sort({ createdAt: -1 });
 
         res.status(200).json(orders);
@@ -204,6 +219,24 @@ exports.acceptRescueRequest = async (req, res) => {
             { session }
         );
 
+        // Notify Buyer
+        await Notification.create([{
+            userId: order.buyerId,
+            type: "order_update",
+            title: "🚚 Volunteer Assigned",
+            message: "A volunteer has accepted your rescue request and is on the way!",
+            data: { orderId: order._id, status: "volunteer_assigned" }
+        }], { session });
+
+        // Notify Seller
+        await Notification.create([{
+            userId: order.sellerId,
+            type: "order_update",
+            title: "🤝 Volunteer Found",
+            message: "A volunteer will arrive shortly to pick up the order.",
+            data: { orderId: order._id, status: "volunteer_assigned" }
+        }], { session });
+
         await session.commitTransaction();
         session.endSession();
 
@@ -216,41 +249,82 @@ exports.acceptRescueRequest = async (req, res) => {
     }
 };
 
-// 10. Update order status
-exports.updateOrderStatus = async (req, res) => {
+// Update order status or other fields
+exports.updateOrder = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
-
-        const validStatuses = [
-            "placed", "awaiting_volunteer", "volunteer_assigned",
-            "volunteer_accepted", "picked_up", "in_transit",
-            "delivered", "cancelled", "failed"
-        ];
-
-        if (!validStatuses.includes(status)) {
-            return res.status(400).json({ error: "Invalid status" });
-        }
+        const updates = req.body;
 
         const order = await Order.findById(id);
         if (!order) {
             return res.status(404).json({ error: "Order not found" });
         }
 
-        order.status = status;
+        // Apply updates
+        if (updates.status) {
+            order.status = updates.status;
+            // Update timeline
+            if (updates.status === "picked_up") order.timeline.pickedUpAt = new Date();
+            if (updates.status === "delivered") order.timeline.deliveredAt = new Date();
+            if (updates.status === "cancelled") order.timeline.cancelledAt = new Date();
+            if (updates.status === "placed") order.timeline.placedAt = new Date();
+        }
 
-        // Update timeline
-        if (status === "picked_up") order.timeline.pickedUpAt = new Date();
-        if (status === "delivered") order.timeline.deliveredAt = new Date();
-        if (status === "cancelled") order.timeline.cancelledAt = new Date();
+        if (updates.fulfillment) {
+            order.fulfillment = updates.fulfillment;
+        }
+
+        if (updates.payment) {
+            order.payment = { ...order.payment.toObject(), ...updates.payment };
+        }
 
         await order.save();
 
-        res.status(200).json({ message: "Order status updated", order });
+        // 4. Send Notification if status changed
+        if (updates.status) {
+            let title = "Order Update";
+            let message = `Order #${order._id.toString().slice(-6)} is now ${updates.status.replace("_", " ")}`;
+
+            // Tailor messages
+            if (updates.status === "picked_up") {
+                title = "🚚 Order Picked Up";
+                message = "The volunteer has picked up your food!";
+            } else if (updates.status === "delivered") {
+                title = "✅ Order Delivered";
+                message = "Enjoy your meal! The order has been delivered.";
+            }
+
+            // Notify Buyer
+            await Notification.create({
+                userId: order.buyerId,
+                type: "order_update",
+                title,
+                message,
+                data: { orderId: order._id, status: updates.status }
+            });
+
+            // Notify Seller if delivered or cancelled
+            if (updates.status === "delivered" || updates.status === "cancelled") {
+                await Notification.create({
+                    userId: order.sellerId,
+                    type: "order_update",
+                    title,
+                    message: updates.status === "delivered" ? "Your food rescue has been successfully completed!" : "The order was cancelled.",
+                    data: { orderId: order._id, status: updates.status }
+                });
+            }
+        }
+
+        res.status(200).json({ message: "Order updated successfully", order });
     } catch (error) {
-        console.error("Update Order Status Error:", error);
+        console.error("Update Order Error:", error);
         res.status(500).json({ error: error.message });
     }
+};
+
+// 10. Simple Status Update (backward compatibility)
+exports.updateOrderStatus = async (req, res) => {
+    return exports.updateOrder(req, res);
 };
 
 // Cancel order

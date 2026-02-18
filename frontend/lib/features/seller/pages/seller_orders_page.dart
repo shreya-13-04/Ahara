@@ -1,51 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../data/models/order_model.dart';
+import 'package:provider/provider.dart';
+import '../../../data/providers/app_auth_provider.dart';
+import '../../../data/services/backend_service.dart';
 import '../../../shared/styles/app_colors.dart';
 import 'seller_order_detail_page.dart';
 
-class SellerOrdersPage extends StatelessWidget {
+class SellerOrdersPage extends StatefulWidget {
   const SellerOrdersPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock Orders for demonstration
-    final List<Order> mockOrders = [
-      Order(
-        id: "ORD001",
-        listingId: "1",
-        listingName: "Mixed Veg Curry",
-        buyerId: "B001",
-        buyerName: "Rahul Sharma",
-        status: OrderStatus.pending,
-        totalAmount: 0,
-        pickupInstructions: "Please pack in eco-friendly containers.",
-        createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
-      ),
-      Order(
-        id: "ORD002",
-        listingId: "2",
-        listingName: "Organic Carrots",
-        buyerId: "B002",
-        buyerName: "Sneha Kapur",
-        status: OrderStatus.confirmed,
-        totalAmount: 45.0,
-        pickupInstructions: "Leave near the gate.",
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      Order(
-        id: "ORD003",
-        listingId: "3",
-        listingName: "Whole Wheat Bread",
-        buyerId: "B003",
-        buyerName: "Amit Patel",
-        status: OrderStatus.picked_up,
-        totalAmount: 0,
-        pickupInstructions: "",
-        createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-      ),
-    ];
+  State<SellerOrdersPage> createState() => _SellerOrdersPageState();
+}
 
+class _SellerOrdersPageState extends State<SellerOrdersPage> {
+  List<Map<String, dynamic>> _orders = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOrders();
+  }
+
+  Future<void> _fetchOrders() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      final sellerId = authProvider.mongoUser?['_id'];
+      if (sellerId != null) {
+        final orders = await BackendService.getSellerOrders(sellerId);
+        if (mounted) {
+          setState(() {
+            _orders = orders;
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _error = "User not logged in";
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -57,23 +73,44 @@ class SellerOrdersPage extends StatelessWidget {
         elevation: 0,
         foregroundColor: AppColors.textDark,
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: mockOrders.length,
-            itemBuilder: (context, index) {
-              final order = mockOrders[index];
-              return _buildOrderCard(context, order);
-            },
-          ),
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("Error: $_error", style: TextStyle(color: Colors.red)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(onPressed: _fetchOrders, child: const Text("Retry")),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _fetchOrders,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 900),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _orders.length,
+                        itemBuilder: (context, index) {
+                          final order = _orders[index];
+                          return _buildOrderCard(context, order);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
     );
   }
 
-  Widget _buildOrderCard(BuildContext context, Order order) {
+  Widget _buildOrderCard(BuildContext context, Map<String, dynamic> order) {
+    final foodName = order['listingId']?['foodName'] ?? "Unknown Item";
+    final buyerName = order['buyerId']?['name'] ?? "Unknown Buyer";
+    final createdAt = DateTime.parse(order['createdAt']);
+    final status = order['status'] ?? "pending";
+    final orderId = order['_id'].toString();
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -106,19 +143,19 @@ class SellerOrdersPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Order #${order.id.substring(order.id.length - 6).toUpperCase()}",
+                    "Order #${orderId.substring(orderId.length - 6).toUpperCase()}",
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textLight.withOpacity(0.6),
                     ),
                   ),
-                  _buildStatusChip(order.status),
+                  _buildStatusChip(status),
                 ],
               ),
               const SizedBox(height: 12),
               Text(
-                order.listingName,
+                foodName,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -135,7 +172,7 @@ class SellerOrdersPage extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    order.buyerName,
+                    buyerName,
                     style: TextStyle(
                       fontSize: 14,
                       color: AppColors.textLight.withOpacity(0.8),
@@ -151,7 +188,7 @@ class SellerOrdersPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    DateFormat('MMM dd, hh:mm a').format(order.createdAt),
+                    DateFormat('MMM dd, hh:mm a').format(createdAt),
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.textLight.withOpacity(0.5),
@@ -174,24 +211,31 @@ class SellerOrdersPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip(OrderStatus status) {
+  Widget _buildStatusChip(String status) {
     Color color;
     switch (status) {
-      case OrderStatus.pending:
+      case "placed":
+      case "pending":
         color = Colors.orange;
         break;
-      case OrderStatus.confirmed:
+      case "awaiting_volunteer":
         color = Colors.blue;
         break;
-      case OrderStatus.picked_up:
+      case "volunteer_assigned":
         color = Colors.indigo;
         break;
-      case OrderStatus.delivered:
+      case "picked_up":
+        color = Colors.purple;
+        break;
+      case "delivered":
+      case "completed":
         color = Colors.green;
         break;
-      case OrderStatus.cancelled:
+      case "cancelled":
         color = Colors.redAccent;
         break;
+      default:
+        color = Colors.grey;
     }
 
     return Container(
@@ -201,7 +245,7 @@ class SellerOrdersPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        status.name.toUpperCase().replaceAll('_', ' '),
+        status.toUpperCase().replaceAll('_', ' '),
         style: TextStyle(
           color: color,
           fontSize: 9,

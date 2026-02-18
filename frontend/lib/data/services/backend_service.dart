@@ -320,6 +320,26 @@ class BackendService {
     }
   }
 
+  static Future<Map<String, dynamic>> updateOrder(String orderId, Map<String, dynamic> updates) async {
+    final url = Uri.parse("$baseUrl/orders/$orderId");
+
+    final response = await http.patch(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode(updates),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to update order");
+    }
+  }
+
   static Future<void> updateOrderStatus(String orderId, String status) async {
     final url = Uri.parse("$baseUrl/orders/$orderId/status");
 

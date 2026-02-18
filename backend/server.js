@@ -23,7 +23,7 @@ app.use((req, res, next) => {
 // Middleware - CORS with explicit configuration for ngrok
 app.use(cors({
   origin: '*', // Allow all origins (for development)
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
   credentials: true,
   preflightContinue: false,

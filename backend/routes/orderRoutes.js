@@ -7,6 +7,7 @@ router.get("/:id", orderController.getOrderById);
 router.get("/buyer/:buyerId", orderController.getBuyerOrders);
 router.get("/seller/:sellerId", orderController.getSellerOrders);
 router.patch("/:id/status", orderController.updateOrderStatus);
+router.patch("/:id", orderController.updateOrder);
 router.post("/:id/cancel", orderController.cancelOrder);
 
 // Volunteer specific

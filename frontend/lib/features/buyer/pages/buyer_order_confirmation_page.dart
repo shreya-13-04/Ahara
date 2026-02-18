@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/styles/app_colors.dart';
 import 'buyer_browse_page.dart';
+import 'buyer_orders_page.dart'; // Assuming this is the target page for "My Orders"
 
 class BuyerOrderConfirmationPage extends StatelessWidget {
   final Map<String, dynamic> order;
@@ -92,6 +93,14 @@ class BuyerOrderConfirmationPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           _buildDetailRow('Order ID', orderId),
+                          if (order['order']?['handoverOtp'] != null) ...[
+                            const Divider(height: 24),
+                            _buildDetailRow(
+                              'Handover OTP', 
+                              order['order']?['handoverOtp'],
+                              valueColor: Colors.blue.shade700,
+                            ),
+                          ],
                           const Divider(height: 24),
                           _buildDetailRow(
                             'Total',
@@ -239,8 +248,11 @@ class BuyerOrderConfirmationPage extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        // TODO: Navigate to buyer orders page when implemented
-                        Navigator.pop(context);
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (_) => const BuyerOrdersPage()),
+                          (route) => false,
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,

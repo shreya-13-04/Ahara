@@ -12,13 +12,28 @@ class BuyerAddressPage extends StatefulWidget {
 }
 
 class _BuyerAddressPageState extends State<BuyerAddressPage> {
-  final List<String> _addresses = [
-    "123, Green Street, Koramangala, Bangalore",
-    "Tech Park, Indiranagar, Bangalore",
-    "45, 8th Main, HSR Layout, Bangalore",
+  final List<Map<String, dynamic>> _addresses = [
+    {
+      "addressText": "123, Green Street, Koramangala, Bangalore",
+      "geo": {"type": "Point", "coordinates": [77.6309, 12.9352]}
+    },
+    {
+      "addressText": "Tech Park, Indiranagar, Bangalore",
+      "geo": {"type": "Point", "coordinates": [77.6387, 12.9784]}
+    },
+    {
+      "addressText": "45, 8th Main, HSR Layout, Bangalore",
+      "geo": {"type": "Point", "coordinates": [77.6375, 12.9121]}
+    },
   ];
 
-  String? _selectedAddress = "123, Green Street, Koramangala, Bangalore";
+  Map<String, dynamic>? _selectedAddressData;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedAddressData = _addresses[0];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,11 +68,11 @@ class _BuyerAddressPageState extends State<BuyerAddressPage> {
               itemCount: _addresses.length,
               separatorBuilder: (_, __) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
-                final addr = _addresses[index];
-                final isSelected = _selectedAddress == addr;
+                final addrData = _addresses[index];
+                final isSelected = _selectedAddressData == addrData;
 
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedAddress = addr),
+                  onTap: () => setState(() => _selectedAddressData = addrData),
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -86,7 +101,7 @@ class _BuyerAddressPageState extends State<BuyerAddressPage> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
-                            addr,
+                            addrData["addressText"],
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: isSelected
@@ -116,17 +131,17 @@ class _BuyerAddressPageState extends State<BuyerAddressPage> {
               children: [
                 OutlinedButton.icon(
                   onPressed: () async {
-                    final newAddress = await Navigator.push(
+                    final newAddressData = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const BuyerAddAddressPage(),
                       ),
                     );
 
-                    if (newAddress != null && newAddress is String) {
+                    if (newAddressData != null && newAddressData is Map<String, dynamic>) {
                       setState(() {
-                        _addresses.add(newAddress);
-                        _selectedAddress = newAddress;
+                        _addresses.add(newAddressData);
+                        _selectedAddressData = newAddressData;
                       });
                     }
                   },
@@ -143,7 +158,7 @@ class _BuyerAddressPageState extends State<BuyerAddressPage> {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(context, _selectedAddress),
+                  onPressed: () => Navigator.pop(context, _selectedAddressData),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     minimumSize: const Size(double.infinity, 56),

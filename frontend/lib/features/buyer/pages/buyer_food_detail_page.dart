@@ -763,27 +763,165 @@ class BuyerFoodDetailPage extends StatelessWidget {
     final pricePerItem = (listing!['pricing']?['discountedPrice'] ?? 0).toDouble();
     final isFree = listing!['pricing']?['isFree'] ?? false;
 
-    int currentStep = 1; // 1: Quantity, 2: Logistics, 3: Summary
-    String fulfillment = "self_pickup"; // default
+    int currentStep = 1; // 1: Quantity, 2: Logistics, 3: Address (optional), 4: Summary/Matching
+    String fulfillment = "self_pickup";
+    Map<String, dynamic>? dropAddressData;
+    final instructionsController = TextEditingController();
+    bool isConsentGiven = false;
+    String matchingStatus = "idle"; // idle, matching, matched, timeout
+    Map<String, dynamic>? matchingOrder;
+    int secondsLeft = 30;
+
+    int totalSteps = fulfillment == "volunteer_delivery" ? 4 : 3;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           bool isPlacing = false;
           double total = pricePerItem * quantity;
+          totalSteps = fulfillment == "volunteer_delivery" ? 4 : 3;
+
+          // Progress Bar Helper
+          Widget buildProgressBar() {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                children: [
+                  Row(
+                    children: List.generate(totalSteps, (index) {
+                      final stepNum = index + 1;
+                      final isActive = stepNum <= currentStep;
+                      return Expanded(
+                        child: Container(
+                          height: 4,
+                          margin: EdgeInsets.only(right: index == totalSteps - 1 ? 0 : 4),
+                          decoration: BoxDecoration(
+                            color: isActive ? AppColors.primary : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Step $currentStep of $totalSteps', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      Text(
+                        currentStep == 1 ? 'Quantity' : currentStep == 2 ? 'Logistics' : currentStep == 3 && fulfillment == "volunteer_delivery" ? 'Address' : 'Review',
+                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Helper for Selection Item (Restored from main branch logic)
+          Widget buildSelectionItem({
+            required IconData icon,
+            required String title,
+            required String value,
+            required VoidCallback onTap,
+          }) {
+            return GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.textDark.withOpacity(0.05)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(icon, color: AppColors.primary),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: AppColors.textLight.withOpacity(0.6),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            value,
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: AppColors.textDark,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Polling Timer logic
+          void startMatching(Map<String, dynamic> order) {
+            matchingOrder = order;
+            setState(() {
+              matchingStatus = "matching";
+              secondsLeft = 30;
+            });
+
+            Future.doWhile(() async {
+              if (matchingStatus != "matching") return false;
+              if (secondsLeft <= 0) {
+                setState(() => matchingStatus = "timeout");
+                return false;
+              }
+
+              try {
+                final updatedOrder = await BackendService.getOrderById(order['_id']);
+                if (updatedOrder['status'] == 'volunteer_assigned' || updatedOrder['status'] == 'volunteer_accepted') {
+                  setState(() {
+                    matchingStatus = "matched";
+                    matchingOrder = updatedOrder;
+                  });
+                  return false;
+                }
+                // Check if backend auto-switched to self_pickup
+                if (updatedOrder['fulfillment'] == 'self_pickup' && updatedOrder['status'] == 'placed') {
+                  setState(() {
+                    matchingStatus = "timeout";
+                    matchingOrder = updatedOrder;
+                  });
+                  return false;
+                }
+              } catch (e) {
+                print("Polling error: $e");
+              }
+
+              await Future.delayed(const Duration(seconds: 2));
+              if (context.mounted) {
+                setState(() => secondsLeft -= 2);
+              }
+              return true;
+            });
+          }
 
           Widget buildQuantityStep() {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Select Quantity',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text('Select Quantity', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -796,14 +934,8 @@ class BuyerFoodDetailPage extends StatelessWidget {
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.primary),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$quantity',
-                        style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
+                      decoration: BoxDecoration(border: Border.all(color: AppColors.primary), borderRadius: BorderRadius.circular(8)),
+                      child: Text('$quantity', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
                     ),
                     IconButton(
                       onPressed: quantity < maxQuantity ? () => setState(() => quantity++) : null,
@@ -824,10 +956,7 @@ class BuyerFoodDetailPage extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Choose Delivery Method',
-                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('Choose Delivery Method', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 RadioListTile<String>(
                   title: const Text('Self-Pickup'),
@@ -849,7 +978,96 @@ class BuyerFoodDetailPage extends StatelessWidget {
             );
           }
 
+          Widget buildAddressStep() {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Delivery Address', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                buildSelectionItem(
+                  icon: Icons.location_on_outlined,
+                  title: "Drop Location",
+                  value: dropAddressData?["addressText"] ?? "Tap to select address",
+                  onTap: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BuyerAddressPage(),
+                      ),
+                    );
+                    if (result != null && result is Map<String, dynamic>) {
+                      setState(() => dropAddressData = result);
+                    }
+                  },
+                ),
+                if (dropAddressData == null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+                    child: Text('Please select a delivery address', style: TextStyle(color: Colors.red.shade700, fontSize: 12)),
+                  ),
+                const SizedBox(height: 24),
+                Text('Special Instructions', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: instructionsController,
+                  decoration: InputDecoration(
+                    hintText: 'Gate code, floor, landmark...',
+                    hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  style: const TextStyle(fontSize: 14),
+                  maxLines: 2,
+                ),
+              ],
+            );
+          }
+
+          Widget buildMatchingUI() {
+            if (matchingStatus == "matching") {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 20),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 20),
+                  Text('Finding a volunteer nearby...', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 10),
+                  Text('Time remaining: ${secondsLeft}s', style: const TextStyle(color: Colors.grey)),
+                ],
+              );
+            } else if (matchingStatus == "timeout") {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.timer_off_outlined, size: 48, color: Colors.orange),
+                  const SizedBox(height: 16),
+                  Text('No volunteers found', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('We couldn\'t find a volunteer to deliver this order right now.', textAlign: TextAlign.center),
+                ],
+              );
+            } else if (matchingStatus == "matched") {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle, size: 48, color: Colors.green),
+                  const SizedBox(height: 16),
+                  Text('Volunteer Found!', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('A volunteer has accepted your delivery request.', textAlign: TextAlign.center),
+                ],
+              );
+            }
+            return const SizedBox.shrink();
+          }
+
           Widget buildSummaryStep() {
+            if (matchingStatus != "idle") return buildMatchingUI();
+
             return Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -858,27 +1076,50 @@ class BuyerFoodDetailPage extends StatelessWidget {
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Subtotal ($quantity items):'),
-                    Text(isFree ? 'FREE' : '₹$total'),
-                  ],
+                  children: [Text('Subtotal ($quantity items):'), Text(isFree ? 'FREE' : '₹$total')],
                 ),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Logistics:'),
-                    Text(fulfillment == 'self_pickup' ? 'Self-Pickup' : 'Volunteer Delivery'),
-                  ],
+                  children: [const Text('Logistics:'), Text(fulfillment == 'self_pickup' ? 'Self-Pickup' : 'Volunteer Delivery')],
                 ),
+                if (fulfillment == 'volunteer_delivery' && dropAddressData != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Drop At:'),
+                      const SizedBox(width: 16),
+                      Expanded(child: Text(dropAddressData!["addressText"], textAlign: TextAlign.right, style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                    ],
+                  ),
+                ],
                 if (fulfillment == 'volunteer_delivery') ...[
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Delivery Fee:'),
-                      Text('FREE', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+                      const Text('Est. Delivery Time:'),
+                      Text('15-25 mins', style: GoogleFonts.inter(color: Colors.orange.shade700, fontWeight: FontWeight.bold)),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.blue.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.security, size: 20, color: Colors.blue),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'You will receive a 4-digit OTP to share with the volunteer for safe delivery.',
+                            style: GoogleFonts.inter(fontSize: 11, color: Colors.blue.shade800),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
                 const Divider(height: 32),
@@ -886,12 +1127,26 @@ class BuyerFoodDetailPage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Total Amount:', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                    Text(
-                      isFree ? 'FREE' : '₹$total',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isFree ? Colors.green : AppColors.primary,
+                    Text(isFree ? 'FREE' : '₹$total', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: isFree ? Colors.green : AppColors.primary)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: Checkbox(
+                        value: isConsentGiven,
+                        onChanged: (val) => setState(() => isConsentGiven = val!),
+                        activeColor: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'I understand this is surplus food and I will inspect it before consumption.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                     ),
                   ],
@@ -902,37 +1157,125 @@ class BuyerFoodDetailPage extends StatelessWidget {
 
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            content: currentStep == 1
-                ? buildQuantityStep()
-                : currentStep == 2
-                    ? buildLogisticsStep()
-                    : buildSummaryStep(),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (matchingStatus == "idle") buildProgressBar(),
+                currentStep == 1 
+                    ? buildQuantityStep() 
+                    : currentStep == 2 
+                        ? buildLogisticsStep() 
+                        : (currentStep == 3 && fulfillment == "volunteer_delivery")
+                            ? buildAddressStep()
+                            : buildSummaryStep(),
+              ],
+            ),
             actions: [
-              if (currentStep > 1)
+              if (currentStep > 1 && matchingStatus == "idle")
+                TextButton(onPressed: () => setState(() => currentStep--), child: const Text('Back')),
+              if (matchingStatus == "timeout")
                 TextButton(
-                  onPressed: () => setState(() => currentStep--),
-                  child: const Text('Back'),
+                  onPressed: () async {
+                    if (matchingOrder != null) {
+                      await BackendService.cancelOrder(matchingOrder!['_id'], 'buyer', 'No volunteer found');
+                    }
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancel Order', style: TextStyle(color: Colors.red)),
                 ),
-              if (currentStep < 3)
+              if (currentStep < totalSteps)
                 ElevatedButton(
-                  onPressed: () => setState(() => currentStep++),
+                  onPressed: () {
+                    if (currentStep == 3 && fulfillment == "volunteer_delivery" && dropAddressData == null) {
+                      return;
+                    }
+                    setState(() => currentStep++);
+                  },
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                   child: const Text('Next', style: TextStyle(color: Colors.white)),
                 ),
-              if (currentStep == 3)
+              if (currentStep == totalSteps)
                 ElevatedButton(
-                  onPressed: isPlacing
+                  onPressed: isPlacing || !isConsentGiven
                       ? null
                       : () async {
-                          setState(() => isPlacing = true);
-                          await _placeOrder(context, quantity, fulfillment);
+                          if (matchingStatus == "idle") {
+                            if (fulfillment == "volunteer_delivery") {
+                                setState(() => isPlacing = true);
+                                final response = await _createInitialOrder(
+                                  context, 
+                                  quantity, 
+                                  fulfillment, 
+                                  dropAddressData: dropAddressData,
+                                  specialInstructions: instructionsController.text,
+                                );
+                                if (response != null) {
+                                  final order = response['order'];
+                                  setState(() {
+                                    matchingOrder = order;
+                                  });
+                                  startMatching(order);
+                                  setState(() => isPlacing = false);
+                                }
+                              } else {
+                                // Self Pickup logic
+                                if (!isFree) {
+                                  final method = await Navigator.push(context, MaterialPageRoute(builder: (_) => const BuyerPaymentPage()));
+                                  if (method == null) return;
+                                }
+                                setState(() => isPlacing = true);
+                                await _placeOrder(
+                                  context, 
+                                  quantity, 
+                                  fulfillment, 
+                                  dropAddressData: dropAddressData,
+                                  specialInstructions: instructionsController.text,
+                                );
+                              }
+                          } else if (matchingStatus == "matched") {
+                            if (!isFree) {
+                                final method = await Navigator.push(context, MaterialPageRoute(builder: (_) => const BuyerPaymentPage()));
+                                if (method == null) return;
+                                // Update order payment status
+                                await BackendService.updateOrder(matchingOrder!['_id'], {
+                                  "payment": {"status": "paid", "method": method}
+                                });
+                            }
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => BuyerOrderConfirmationPage(order: {"order": matchingOrder!})));
+                            }
+                          } else if (matchingStatus == "timeout") {
+                            // Switch to self-pickup
+                            setState(() {
+                              isPlacing = true;
+                              fulfillment = "self_pickup";
+                            });
+                            await BackendService.updateOrder(matchingOrder!['_id'], {"fulfillment": "self_pickup", "status": "placed"});
+                            if (!isFree) {
+                                final method = await Navigator.push(context, MaterialPageRoute(builder: (_) => const BuyerPaymentPage()));
+                                if (method != null) {
+                                   await BackendService.updateOrder(matchingOrder!['_id'], {"payment": {"status": "paid", "method": method}});
+                                }
+                            }
+                            if (context.mounted) {
+                              final finalOrder = await BackendService.getOrderById(matchingOrder!['_id']);
+                              Navigator.pop(context);
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => BuyerOrderConfirmationPage(order: {"order": finalOrder})));
+                            }
+                          }
                         },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isFree ? Colors.green : AppColors.primary,
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: isFree ? Colors.green : AppColors.primary),
                   child: isPlacing
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text(isFree ? 'Claim' : 'Confirm Order', style: const TextStyle(color: Colors.white)),
+                      : Text(
+                          matchingStatus == "idle"
+                              ? (isFree ? 'Claim' : 'Confirm Order')
+                              : matchingStatus == "timeout"
+                                  ? 'Switch to Pickup'
+                                  : 'Finalize Order',
+                          style: const TextStyle(color: Colors.white),
+                        ),
                 ),
             ],
           );
@@ -941,7 +1284,46 @@ class BuyerFoodDetailPage extends StatelessWidget {
     );
   }
 
-  Future<void> _placeOrder(BuildContext context, int quantity, String fulfillment) async {
+  Future<Map<String, dynamic>?> _createInitialOrder(BuildContext context, int quantity, String fulfillment, {Map<String, dynamic>? dropAddressData, String? specialInstructions}) async {
+    try {
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      final buyerId = authProvider.mongoUser?['_id'];
+      if (buyerId == null) throw Exception('User not logged in');
+
+      final discountedPrice = (listing!['pricing']?['discountedPrice'] ?? listing!['pricing']?['originalPrice'] ?? 0).toDouble();
+      final itemTotal = discountedPrice * quantity;
+
+      final orderData = {
+        "listingId": listing!['_id'].toString(),
+        "buyerId": buyerId.toString(),
+        "quantityOrdered": quantity,
+        "fulfillment": fulfillment,
+        "specialInstructions": specialInstructions,
+        "pickup": {
+          "addressText": listing!['pickupAddressText'] ?? listing!['pickupAddress']?['addressText'] ?? 'Pickup location',
+          "scheduledAt": listing!['pickupWindow']?['to'],
+          if (listing!['pickupGeo'] != null) "geo": listing!['pickupGeo'],
+        },
+        if (dropAddressData != null) "drop": {
+          "addressText": dropAddressData["addressText"],
+          if (dropAddressData["geo"] != null) "geo": dropAddressData["geo"],
+        },
+        "pricing": {
+          "itemTotal": itemTotal,
+          "deliveryFee": 0.0,
+          "platformFee": 0.0,
+          "total": itemTotal,
+        },
+      };
+
+      return await BackendService.createOrder(orderData);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to initialize: $e'), backgroundColor: Colors.red));
+      return null;
+    }
+  }
+
+  Future<void> _placeOrder(BuildContext context, int quantity, String fulfillment, {Map<String, dynamic>? dropAddressData, String? specialInstructions}) async {
     try {
       // Get buyer ID from auth provider
       final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
@@ -966,10 +1348,15 @@ class BuyerFoodDetailPage extends StatelessWidget {
         "buyerId": buyerIdStr,
         "quantityOrdered": quantity,
         "fulfillment": fulfillment,
+        "specialInstructions": specialInstructions,
         "pickup": {
           "addressText": listing!['pickupAddressText'] ?? listing!['pickupAddress']?['addressText'] ?? 'Pickup location',
           "scheduledAt": listing!['pickupWindow']?['to'],
           if (listing!['pickupGeo'] != null) "geo": listing!['pickupGeo'],
+        },
+        if (dropAddressData != null) "drop": {
+          "addressText": dropAddressData["addressText"],
+          if (dropAddressData["geo"] != null) "geo": dropAddressData["geo"],
         },
         "pricing": {
           "itemTotal": itemTotal,
