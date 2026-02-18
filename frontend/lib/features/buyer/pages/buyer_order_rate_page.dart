@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../data/mock_orders.dart';
+import '../../../data/services/backend_service.dart';
 
 class BuyerOrderRatePage extends StatefulWidget {
-  final MockOrder order;
+  final Map<String, dynamic> order;
 
   const BuyerOrderRatePage({super.key, required this.order});
 
@@ -47,11 +47,11 @@ class _BuyerOrderRatePageState extends State<BuyerOrderRatePage> {
                   children: [
                     CircleAvatar(
                       radius: 40,
-                      backgroundImage: NetworkImage(widget.order.store.image),
+                      backgroundImage: _getStoreImage(widget.order['listingId'] ?? {}),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      widget.order.store.name,
+                      widget.order['sellerId']?['name'] ?? "Unknown Donor",
                       style: GoogleFonts.inter(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -94,8 +94,7 @@ class _BuyerOrderRatePageState extends State<BuyerOrderRatePage> {
               const SizedBox(height: 48),
 
               // Volunteer Rating
-              if (widget.order.type == OrderType.delivery &&
-                  widget.order.volunteerName != null) ...[
+              if (widget.order['volunteerId'] != null) ...[
                 const Divider(),
                 const SizedBox(height: 24),
                 Text(
@@ -110,7 +109,7 @@ class _BuyerOrderRatePageState extends State<BuyerOrderRatePage> {
                   child: Column(
                     children: [
                       Text(
-                        "How was ${widget.order.volunteerName}?",
+                        "How was ${widget.order['volunteerId']?['name'] ?? 'the volunteer'}?",
                         style: GoogleFonts.inter(fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 16),
@@ -197,5 +196,12 @@ class _BuyerOrderRatePageState extends State<BuyerOrderRatePage> {
         );
       }),
     );
+  }
+  ImageProvider? _getStoreImage(Map<String, dynamic> listing) {
+    final images = listing['images'] as List?;
+    if (images != null && images.isNotEmpty) {
+      return NetworkImage(BackendService.formatImageUrl(images.first));
+    }
+    return null;
   }
 }

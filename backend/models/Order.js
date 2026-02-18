@@ -31,18 +31,27 @@ const orderSchema = new mongoose.Schema(
         },
 
         pickup: {
-            geo: GeoPointSchema,
+            geo: {
+                type: { type: String, enum: ["Point"] },
+                coordinates: { type: [Number] }
+            },
             addressText: String,
             scheduledAt: Date
         },
 
         drop: {
-            geo: GeoPointSchema,
+            geo: {
+                type: { type: String, enum: ["Point"] },
+                coordinates: { type: [Number] }
+            },
             addressText: String
         },
 
         tracking: {
-            lastVolunteerGeo: GeoPointSchema,
+            lastVolunteerGeo: {
+                type: { type: String, enum: ["Point"] },
+                coordinates: { type: [Number] }
+            },
             lastUpdatedAt: Date
         },
 

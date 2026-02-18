@@ -253,4 +253,227 @@ class BackendService {
     final root = baseUrl.replaceAll('/api', '');
     return "$root$path";
   }
+
+  static Future<void> relistListing(String id, Map<String, dynamic> pickupWindow) async {
+    final url = Uri.parse("$baseUrl/listings/relist/$id");
+
+    final response = await http.put(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode({"pickupWindow": pickupWindow}),
+    );
+
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to relist listing");
+    }
+  }
+
+  static Future<void> updateUserPreferences({
+    required String firebaseUid,
+    String? language,
+    String? uiMode,
+  }) async {
+    final url = Uri.parse("$baseUrl/users/preferences/$firebaseUid");
+
+    final response = await http.put(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode({
+        if (language != null) "language": language,
+        if (uiMode != null) "uiMode": uiMode,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to update user preferences");
+    }
+  }
+
+  // Order Management Methods
+  static Future<Map<String, dynamic>> createOrder(Map<String, dynamic> orderData) async {
+    final url = Uri.parse("$baseUrl/orders/create");
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode(orderData),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to create order");
+    }
+  }
+
+  static Future<Map<String, dynamic>> getOrderById(String orderId) async {
+    final url = Uri.parse("$baseUrl/orders/$orderId");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to fetch order");
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getBuyerOrders(String buyerId, {String? status}) async {
+    final url = status != null
+        ? Uri.parse("$baseUrl/orders/buyer/$buyerId?status=$status")
+        : Uri.parse("$baseUrl/orders/buyer/$buyerId");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception("Failed to fetch buyer orders");
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getSellerOrders(String sellerId, {String? status}) async {
+    final url = status != null
+        ? Uri.parse("$baseUrl/orders/seller/$sellerId?status=$status")
+        : Uri.parse("$baseUrl/orders/seller/$sellerId");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception("Failed to fetch seller orders");
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateOrder(String orderId, Map<String, dynamic> updates) async {
+    final url = Uri.parse("$baseUrl/orders/$orderId");
+
+    final response = await http.patch(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode(updates),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to update order");
+    }
+  }
+
+  static Future<void> updateOrderStatus(String orderId, String status) async {
+    final url = Uri.parse("$baseUrl/orders/$orderId/status");
+
+    final response = await http.patch(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode({"status": status}),
+    );
+
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to update order status");
+    }
+  }
+
+  static Future<void> cancelOrder(String orderId, String cancelledBy, String reason) async {
+    final url = Uri.parse("$baseUrl/orders/$orderId/cancel");
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode({
+        "cancelledBy": cancelledBy,
+        "reason": reason,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to cancel order");
+    }
+  }
+
+  // --- Volunteer Methods ---
+
+  static Future<List<Map<String, dynamic>>> getVolunteerRescueRequests(String volunteerId) async {
+    final url = Uri.parse("$baseUrl/orders/volunteer/requests/$volunteerId");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception("Failed to fetch rescue requests");
+    }
+  }
+
+  static Future<Map<String, dynamic>> acceptRescueRequest(String orderId, String volunteerId) async {
+    final url = Uri.parse("$baseUrl/orders/$orderId/accept");
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: jsonEncode({"volunteerId": volunteerId}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? "Failed to accept rescue request");
+    }
+  }
 }
