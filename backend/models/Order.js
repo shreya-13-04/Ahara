@@ -31,18 +31,27 @@ const orderSchema = new mongoose.Schema(
         },
 
         pickup: {
-            geo: GeoPointSchema,
+            geo: {
+                type: { type: String, enum: ["Point"] },
+                coordinates: { type: [Number] }
+            },
             addressText: String,
             scheduledAt: Date
         },
 
         drop: {
-            geo: GeoPointSchema,
+            geo: {
+                type: { type: String, enum: ["Point"] },
+                coordinates: { type: [Number] }
+            },
             addressText: String
         },
 
         tracking: {
-            lastVolunteerGeo: GeoPointSchema,
+            lastVolunteerGeo: {
+                type: { type: String, enum: ["Point"] },
+                coordinates: { type: [Number] }
+            },
             lastUpdatedAt: Date
         },
 
@@ -56,7 +65,10 @@ const orderSchema = new mongoose.Schema(
         payment: {
             status: { type: String, enum: ["not_required", "pending", "paid", "failed", "refunded"], default: "pending" },
             method: String,
-            transactionId: String
+            transactionId: String,
+            razorpayOrderId: String,
+            razorpayPaymentId: String,
+            razorpaySignature: String
         },
 
         handoverOtp: String,

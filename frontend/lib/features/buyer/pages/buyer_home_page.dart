@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../shared/styles/app_colors.dart';
 import '../data/mock_stores.dart';
@@ -5,7 +6,12 @@ import '../../common/pages/landing_page.dart';
 import 'buyer_food_detail_page.dart';
 import 'buyer_notifications_page.dart';
 import '../../../../core/utils/responsive_layout.dart';
+import '../../../data/services/backend_service.dart';
 import '../../../core/localization/app_localizations.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+
+
 
 class BuyerHomePage extends StatefulWidget {
   final Set<String> favouriteIds;
@@ -25,6 +31,18 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   String _mainCategory = "All";
   String _subCategory = "All";
 
+  // Real listings state
+  List<Map<String, dynamic>> _realListings = [];
+  bool _isLoading = false;
+
+  // Live countdown state
+  DateTime _now = DateTime.now();
+  Timer? _countdownTimer;
+
+  // 🔥 NEW: User location state
+  String _userLocation = "Loading...";
+  String _firebaseUid = "";
+
   final List<String> _mainCategories = ["All", "Free", "Discounted"];
   final List<String> _categories = [
     "All",
@@ -38,20 +56,125 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+
+    // 🔥 Get Firebase UID
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _firebaseUid = user.uid;
+      _loadUserLocation();
+    }
+
+    _fetchRealListings();
+
+    // Update countdown every 30 seconds
+    _countdownTimer =
+        Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() => _now = DateTime.now());
+      }
+    });
+  }
+  Future<void> _loadUserLocation() async {
+  try {
+    final response =
+        await BackendService.getUserProfile(_firebaseUid);
+
+    print("FULL RESPONSE: $response");
+
+    if (mounted) {
+      setState(() {
+        _userLocation =
+            response['user']?['addressText'] ??
+            "Unknown location";
+      });
+    }
+  } catch (e) {
+    print("Location fetch error: $e");
+    if (mounted) {
+      setState(() {
+        _userLocation = "Location unavailable";
+      });
+    }
+  }
+}
+
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+
+  Future<void> _fetchRealListings() async {
+    setState(() => _isLoading = true);
+    try {
+      final listings = await BackendService.getAllActiveListings();
+      if (mounted) {
+        setState(() {
+          _realListings = listings;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching listings: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  // Filter out expired listings
+  List<Map<String, dynamic>> get _validListings {
+    final now = DateTime.now();
+    return _realListings.where((listing) {
+      final expiryStr = listing['pickupWindow']?['to'];
+      if (expiryStr == null) return false;
+      try {
+        final expiry = DateTime.parse(expiryStr);
+        return expiry.isAfter(now);
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+  }
+
+  // Format time remaining
+  String _formatTimeRemaining(DateTime expiryTime) {
+    final diff = expiryTime.difference(_now);
+    if (diff.isNegative) return "Expired";
+    if (diff.inDays > 0) return "${diff.inDays}d ${diff.inHours % 24}h";
+    if (diff.inHours > 0) return "${diff.inHours}h ${diff.inMinutes % 60}m";
+    if (diff.inMinutes > 0) return "${diff.inMinutes}m";
+    return "Soon";
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final filteredStores = allMockStores.where((s) {
+    // Combine mock stores and real listings
+    final allItems = <dynamic>[
+      ..._validListings,
+      ...allMockStores,
+    ];
+    
+    final filteredItems = allItems.where((item) {
+      // Check if it's a mock store or real listing
+      final isMock = item is MockStore;
+      
       // Filter by Main Category (Free/Discounted)
       bool matchesMain = true;
       if (_mainCategory == "Free") {
-        matchesMain = s.isFree;
+        matchesMain = isMock ? item.isFree : (item['pricing']?['isFree'] ?? false);
       } else if (_mainCategory == "Discounted") {
-        matchesMain = s.discount != null;
+        matchesMain = isMock ? (item.discount != null) : ((item['pricing']?['originalPrice'] ?? 0) > (item['pricing']?['discountedPrice'] ?? 0));
       }
 
       // Filter by Sub Category (Food Type)
       bool matchesSub = true;
       if (_subCategory != "All") {
-        matchesSub = s.category == _subCategory;
+        matchesSub = isMock ? (item.category == _subCategory) : (item['foodType'] == _subCategory);
       }
 
       return matchesMain && matchesSub;
@@ -65,48 +188,50 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
           const SizedBox(height: 8),
           _buildCategoryTabs(),
           Expanded(
-            child: filteredStores.isEmpty
-                ? _buildEmptyState()
-                : ResponsiveLayout(
-                    mobile: ListView.builder(
-                      padding: const EdgeInsets.all(20),
-                      itemCount: filteredStores.length,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          child: _buildRestaurantCard(filteredStores[index]),
-                        );
-                      },
-                    ),
-                    tablet: GridView.builder(
-                      padding: const EdgeInsets.all(20),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 1.1,
-                            crossAxisSpacing: 20,
-                            mainAxisSpacing: 20,
-                          ),
-                      itemCount: filteredStores.length,
-                      itemBuilder: (context, index) {
-                        return _buildRestaurantCard(filteredStores[index]);
-                      },
-                    ),
-                    desktop: GridView.builder(
-                      padding: const EdgeInsets.all(20),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            childAspectRatio: 1.0,
-                            crossAxisSpacing: 20,
-                            mainAxisSpacing: 20,
-                          ),
-                      itemCount: filteredStores.length,
-                      itemBuilder: (context, index) {
-                        return _buildRestaurantCard(filteredStores[index]);
-                      },
-                    ),
-                  ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredItems.isEmpty
+                    ? _buildEmptyState()
+                    : ResponsiveLayout(
+                        mobile: ListView.builder(
+                          padding: const EdgeInsets.all(20),
+                          itemCount: filteredItems.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 24),
+                              child: _buildItemCard(filteredItems[index]),
+                            );
+                          },
+                        ),
+                        tablet: GridView.builder(
+                          padding: const EdgeInsets.all(20),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 1.1,
+                                crossAxisSpacing: 20,
+                                mainAxisSpacing: 20,
+                              ),
+                          itemCount: filteredItems.length,
+                          itemBuilder: (context, index) {
+                            return _buildItemCard(filteredItems[index]);
+                          },
+                        ),
+                        desktop: GridView.builder(
+                          padding: const EdgeInsets.all(20),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                childAspectRatio: 1.0,
+                                crossAxisSpacing: 20,
+                                mainAxisSpacing: 20,
+                              ),
+                          itemCount: filteredItems.length,
+                          itemBuilder: (context, index) {
+                            return _buildItemCard(filteredItems[index]);
+                          },
+                        ),
+                      ),
           ),
         ],
       ),
@@ -138,82 +263,97 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      color: AppColors.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      "Koramangala, Bangalore",
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.location_on,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 4),
+
+                  // 🔥 Dynamic Location
+                  Expanded(
+                    child: Text(
+                      _userLocation,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: AppColors.textLight.withOpacity(0.6),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: AppColors.primary,
-                      size: 14,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  "Discover Bangalore",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textDark,
-                    letterSpacing: -0.5,
                   ),
+
+                  const Icon(
+                    Icons.keyboard_arrow_down,
+                    color: AppColors.primary,
+                    size: 14,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+
+              // 🔥 Dynamic Discover Title
+              Text(
+                _userLocation == "Loading..."
+                    ? "Discover"
+                    : "Discover ${_userLocation.split(',').last.trim()}",
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textDark,
+                  letterSpacing: -0.5,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BuyerNotificationsPage(),
-                ),
-              );
-            },
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: AppColors.textDark,
-              size: 22,
-            ),
-            tooltip: "Notifications",
+        ),
+        IconButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BuyerNotificationsPage(),
+              ),
+            );
+          },
+          icon: const Icon(
+            Icons.notifications_outlined,
+            color: AppColors.textDark,
+            size: 22,
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LandingPage()),
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.logout, color: AppColors.textDark, size: 22),
-            tooltip: "Logout",
+          tooltip: "Notifications",
+        ),
+        IconButton(
+          onPressed: () async {
+            await FirebaseAuth.instance.signOut();
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LandingPage()),
+              (route) => false,
+            );
+          },
+          icon: const Icon(
+            Icons.logout,
+            color: AppColors.textDark,
+            size: 22,
           ),
-        ],
-      ),
-    );
-  }
+          tooltip: "Logout",
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildMainCategoryTabs() {
     return Padding(
@@ -299,6 +439,218 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // Unified card builder for both mock and real data
+  Widget _buildItemCard(dynamic item) {
+    if (item is MockStore) {
+      return _buildRestaurantCard(item);
+    } else {
+      return _buildRealListingCard(item as Map<String, dynamic>);
+    }
+  }
+
+  // New: Real listing card
+  Widget _buildRealListingCard(Map<String, dynamic> listing) {
+    final String name = listing['foodName'] ?? "Unknown Food";
+    final pricing = listing['pricing'] ?? {};
+    final bool isFree = pricing['isFree'] ?? false;
+    final int price = pricing['discountedPrice'] ?? 0;
+    final int? originalPrice = pricing['originalPrice'];
+    
+    final sellerProfile = listing['sellerProfileId'] ?? {};
+    final String orgName = sellerProfile['orgName'] ?? "Local Seller";
+    final double rating = (sellerProfile['stats']?['avgRating'] ?? 0.0).toDouble();
+    final int ratingCount = sellerProfile['stats']?['ratingCount'] ?? 0;
+    
+    final String? expiryStr = listing['pickupWindow']?['to'];
+    final DateTime? expiryTime = expiryStr != null ? DateTime.tryParse(expiryStr) : null;
+    
+    final List images = listing['images'] ?? [];
+    final String uploadedImageUrl = images.isNotEmpty 
+        ? BackendService.formatImageUrl(images[0])
+        : "";
+    final String foodName = listing['foodName'] ?? "Food Item";
+    final String imageUrl = BackendService.isValidImageUrl(uploadedImageUrl)
+        ? uploadedImageUrl
+        : BackendService.generateFoodImageUrl(foodName);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BuyerFoodDetailPage(listing: listing),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.textDark.withOpacity(0.04),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  child: Image.network(
+                    imageUrl,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: 180,
+                        color: AppColors.textLight.withOpacity(0.05),
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 180,
+                        width: double.infinity,
+                        color: AppColors.textLight.withOpacity(0.05),
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: AppColors.textLight.withOpacity(0.2),
+                          size: 32,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (isFree)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        "FREE",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (rating > 0)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textDark,
+                          ),
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (originalPrice != null && originalPrice > price)
+                            Text(
+                              "₹$originalPrice",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textLight.withOpacity(0.5),
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          Text(
+                            isFree ? "FREE" : "₹$price",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: isFree ? Colors.green : AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      if (expiryTime != null) ...[
+                        _buildIconLabel(Icons.timer_outlined, "Ends in ${_formatTimeRemaining(expiryTime)}"),
+                        const SizedBox(width: 16),
+                      ],
+                      _buildIconLabel(Icons.store, orgName),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isFree ? Colors.green : AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          isFree ? "Claim Now" : "Reserve",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

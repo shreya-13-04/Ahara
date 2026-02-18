@@ -6,7 +6,6 @@ import '../services/google_auth_service.dart';
 import '../services/backend_service.dart';
 
 class AppAuthProvider extends ChangeNotifier {
-
   //---------------------------------------------------------
   /// SERVICES
   //---------------------------------------------------------
@@ -48,12 +47,14 @@ class AppAuthProvider extends ChangeNotifier {
     if (currentUser == null) return;
     
     try {
+      debugPrint("🔄 Fetching mongo user for UID: ${currentUser!.uid}");
       final data = await BackendService.getUserProfile(currentUser!.uid);
       _mongoUser = data['user'];
       _mongoProfile = data['profile'];
+      debugPrint("✅ Mongo user loaded: ${_mongoUser?['_id']}");
       notifyListeners();
     } catch (e) {
-      debugPrint("Error fetching mongo user: $e. Checking Firestore for auto-sync...");
+      debugPrint("❌ Error fetching mongo user: $e. Checking Firestore for auto-sync...");
       
       try {
         // SELF-HEALING: If not in Mongo, check Firestore
@@ -64,7 +65,7 @@ class AppAuthProvider extends ChangeNotifier {
 
         if (firestoreDoc.exists) {
           final userData = firestoreDoc.data()!;
-          debugPrint("Found Firestore data, attempting auto-sync to Mongo...");
+          debugPrint("📝 Found Firestore data, attempting auto-sync to Mongo...");
           
           await BackendService.createUser(
             firebaseUid: currentUser!.uid,
@@ -80,10 +81,12 @@ class AppAuthProvider extends ChangeNotifier {
           _mongoUser = data['user'];
           _mongoProfile = data['profile'];
           notifyListeners();
-          debugPrint("Auto-sync successful ✅");
+          debugPrint("✅ Auto-sync successful");
+        } else {
+          debugPrint("❌ No Firestore data found for user");
         }
       } catch (innerError) {
-        debugPrint("Auto-sync failed: $innerError");
+        debugPrint("❌ Auto-sync failed: $innerError");
       }
     }
   }
@@ -96,7 +99,6 @@ class AppAuthProvider extends ChangeNotifier {
   //---------------------------------------------------------
 
   Future<User?> login(String email, String password) async {
-
     _setLoading(true);
 
     try {
@@ -105,10 +107,8 @@ class AppAuthProvider extends ChangeNotifier {
         await refreshMongoUser();
       }
       return user;
-
     } catch (e) {
       rethrow;
-
     } finally {
       _setLoading(false);
     }
@@ -133,11 +133,9 @@ class AppAuthProvider extends ChangeNotifier {
     String? dateOfBirth,
     String? language,
   }) async {
-
     _setLoading(true);
 
     try {
-
       final user = await _authService.registerUser(
         role: role,
         name: name,
@@ -158,10 +156,8 @@ class AppAuthProvider extends ChangeNotifier {
       }
 
       return user;
-
     } catch (e) {
       rethrow;
-
     } finally {
       _setLoading(false);
     }
@@ -174,34 +170,41 @@ class AppAuthProvider extends ChangeNotifier {
   //---------------------------------------------------------
 
   Future<User?> signInWithGoogle() async {
+    _setLoading(true);
 
-  _setLoading(true);
+    try {
+      final user = await _googleService.signInWithGoogle();
 
-  try {
-
-    final user = await _googleService.signInWithGoogle();
-
-    if (user != null) {
-
-      /// 🔥 THIS IS THE MAGIC LINE
-      await _authService.registerUser(
-        role: "buyer", // later make dynamic
-        name: user.displayName ?? "Google User",
-        phone: "",
-        email: user.email!,
-        password: "google-auth", // dummy, not used
-        location: "",
-      );
+      return user;
+    } catch (e) {
+      rethrow;
+    } finally {
+      _setLoading(false);
     }
-
-    return user;
-
-  } catch (e) {
-    rethrow;
-  } finally {
-    _setLoading(false);
   }
-}
+
+  //---------------------------------------------------------
+  /// GET USER ROLE FROM FIRESTORE
+  //---------------------------------------------------------
+
+  Future<String?> getUserRole(String uid) async {
+    try {
+      if (_auth.currentUser == null) return null;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (doc.exists) {
+        return doc.data()?['role'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching user role: $e');
+      return null;
+    }
+  }
 
   //---------------------------------------------------------
   /// LOGOUT
@@ -212,7 +215,6 @@ class AppAuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  
   //---------------------------------------------------------
   /// INTERNAL LOADING HANDLER
   //---------------------------------------------------------

@@ -9,6 +9,7 @@ const userRoutes = require("./routes/userRoutes");
 const listingRoutes = require("./routes/listingRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 if (process.env.NODE_ENV !== 'test') {
   connectDB();
@@ -19,8 +20,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware
-app.use(cors());
+// Middleware - CORS with explicit configuration for ngrok
+app.use(cors({
+  origin: '*', // Allow all origins (for development)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
 
 /// ✅ THEN JSON
 app.use(express.json());
@@ -30,6 +38,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/listings", listingRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Serve static uploads with ngrok bypass header (best effort)
 app.use("/uploads", (req, res, next) => {

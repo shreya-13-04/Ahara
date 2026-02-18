@@ -43,13 +43,25 @@ class _BuyerAddAddressPageState extends State<BuyerAddAddressPage>
   void _handleConfirm() {
     if (_tabController.index == 0) {
       if (_formKey.currentState!.validate()) {
-        final address =
+        final addressText =
             "${_houseController.text}, ${_streetController.text}, ${_areaController.text}, Bangalore - ${_pincodeController.text}";
-        Navigator.pop(context, address);
+        Navigator.pop(context, {
+          "addressText": addressText,
+          "geo": {
+            "type": "Point",
+            "coordinates": [77.6309, 12.9352] // Mock coordinates for Koramangala
+          }
+        });
       }
     } else {
       // For mock map, return a static address based on "selection"
-      Navigator.pop(context, "Selected Location, Whitefield, Bangalore");
+      Navigator.pop(context, {
+        "addressText": "Selected Location, Whitefield, Bangalore",
+        "geo": {
+          "type": "Point",
+          "coordinates": [77.7500, 12.9698] // Mock coordinates for Whitefield
+        }
+      });
     }
   }
 

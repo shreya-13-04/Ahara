@@ -1,22 +1,27 @@
-const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const dotenv = require('dotenv');
+const mongoose = require('mongoose');
 
 dotenv.config();
 
-let mongoServer;
 
-beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
+
+exports.connect = async () => {
+    mongoServer = await MongoMemoryServer.create({
+        replSet: {
+            count: 1,
+            storageEngine: 'wiredTiger',
+        }
+    });
     const uri = mongoServer.getUri();
     await mongoose.connect(uri);
-});
+};
 
-afterAll(async () => {
+exports.disconnect = async () => {
     if (mongoose.connection.readyState !== 0) {
         await mongoose.disconnect();
     }
     if (mongoServer) {
         await mongoServer.stop();
     }
-});
+};

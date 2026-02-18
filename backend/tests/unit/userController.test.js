@@ -1,8 +1,14 @@
 const userController = require('../../controllers/userController');
 const User = require('../../models/User');
 const httpMocks = require('node-mocks-http');
+const BuyerProfile = require('../../models/BuyerProfile');
+const SellerProfile = require('../../models/SellerProfile');
+const VolunteerProfile = require('../../models/VolunteerProfile');
 
 jest.mock('../../models/User');
+jest.mock('../../models/BuyerProfile');
+jest.mock('../../models/SellerProfile');
+jest.mock('../../models/VolunteerProfile');
 
 describe('User Controller - createUser', () => {
     let req, res, next;
@@ -71,6 +77,11 @@ describe('User Controller - createUser', () => {
             _id: '507f1f77bcf86cd799439011', // Valid ObjectId
             firebaseUid: 'new-uid',
             name: 'New User'
+        });
+
+        BuyerProfile.create.mockResolvedValue({
+            _id: 'profile_id',
+            userId: '507f1f77bcf86cd799439011'
         });
 
         // Mock specific profile creation if needed, but for unit test of user creation main flow:
