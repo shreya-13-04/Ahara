@@ -20,6 +20,103 @@ class VolunteerHomePage extends StatefulWidget {
 
 class _VolunteerHomePageState extends State<VolunteerHomePage> {
   bool isAvailable = true;
+  bool _isLoading = true;
+  String? _error;
+
+  int _newRequests = 0;
+  int _activeCount = 0;
+  int _completedCount = 0;
+  int _todayCount = 0;
+  int _totalDeliveries = 0;
+  double _avgRating = 0;
+
+  List<Map<String, dynamic>> _rescueRequests = [];
+  List<Map<String, dynamic>> _volunteerOrders = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVolunteerData();
+  }
+
+  Future<void> _fetchVolunteerData() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final auth = Provider.of<AppAuthProvider>(context, listen: false);
+      if (auth.mongoUser == null && auth.currentUser != null) {
+        await auth.refreshMongoUser();
+      }
+
+      final volunteerId = auth.mongoUser?['_id'];
+      if (volunteerId == null) {
+        throw Exception("Unable to load volunteer profile");
+      }
+
+      final requests = await BackendService.getVolunteerRescueRequests(
+        volunteerId,
+      );
+      final orders = await BackendService.getVolunteerOrders(volunteerId);
+
+      final activeStatuses = {
+        "volunteer_assigned",
+        "volunteer_accepted",
+        "picked_up",
+        "in_transit",
+      };
+
+      int activeCount = 0;
+      int completedCount = 0;
+      int todayCount = 0;
+
+      for (final order in orders) {
+        final status = (order['status'] ?? '').toString();
+
+        if (activeStatuses.contains(status)) {
+          activeCount += 1;
+        }
+
+        if (status == 'delivered') {
+          completedCount += 1;
+        }
+
+        final dateSource =
+            order['timeline']?['deliveredAt'] ?? order['createdAt'];
+        if (_isToday(dateSource)) {
+          todayCount += 1;
+        }
+      }
+
+      final stats = auth.mongoProfile?['stats'] as Map<String, dynamic>?;
+      final avgRating = (stats?['avgRating'] as num?)?.toDouble() ?? 0;
+      final totalDeliveries =
+          (stats?['totalDeliveriesCompleted'] as num?)?.toInt() ?? 0;
+
+      if (!mounted) return;
+      setState(() {
+        _rescueRequests = requests;
+        _volunteerOrders = orders;
+        _newRequests = requests.length;
+        _activeCount = activeCount;
+        _completedCount = completedCount;
+        _todayCount = todayCount;
+        _avgRating = avgRating;
+        _totalDeliveries = totalDeliveries;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -258,9 +355,24 @@ class _VolunteerHomePageState extends State<VolunteerHomePage> {
       mainAxisSpacing: 12,
       childAspectRatio: childAspectRatio,
       children: [
-        _statCard("deliveries", "47", Colors.blue, width),
-        _statCard("today", "3", Colors.green, width),
-        _statCard("ratings", "4.8", Colors.orange, width),
+        _statCard(
+          "deliveries",
+          _isLoading ? "..." : _totalDeliveries.toString(),
+          Colors.blue,
+          width,
+        ),
+        _statCard(
+          "today",
+          _isLoading ? "..." : _todayCount.toString(),
+          Colors.green,
+          width,
+        ),
+        _statCard(
+          "ratings",
+          _isLoading ? "..." : _avgRating.toStringAsFixed(1),
+          Colors.orange,
+          width,
+        ),
       ],
     );
   }
@@ -301,33 +413,68 @@ class _VolunteerHomePageState extends State<VolunteerHomePage> {
   //----------------------------------------------------------
 
   Widget _badgeSection() {
+    final stats =
+        context.watch<AppAuthProvider>().mongoProfile?['stats']
+            as Map<String, dynamic>?;
+    final badgeData =
+        context.watch<AppAuthProvider>().mongoProfile?['badge']
+            as Map<String, dynamic>?;
+
+    final totalCompleted =
+        (stats?['totalDeliveriesCompleted'] as num?)?.toInt() ?? 0;
+    final failed = (stats?['totalDeliveriesFailed'] as num?)?.toInt() ?? 0;
+    final noShows = (stats?['noShows'] as num?)?.toInt() ?? 0;
+    final avgRating = (stats?['avgRating'] as num?)?.toDouble() ?? 0;
+
+    final isVerified = (badgeData?['tickVerified'] as bool?) ?? false;
+    final topVolunteer = avgRating >= 4.5 && totalCompleted >= 10;
+    final fiftyDeliveries = totalCompleted >= 50;
+    final perfectStreak = totalCompleted > 0 && failed == 0 && noShows == 0;
+
     return Wrap(
       spacing: 12,
       runSpacing: 12,
       children: [
-        _badge(Icons.verified, 'verified_volunteer'),
-        _badge(Icons.star, 'top_volunteer'),
-        _badge(Icons.local_shipping, 'fifty_deliveries'),
-        _badge(Icons.flash_on, 'perfect_streak'),
+        _badge(Icons.verified, 'verified_volunteer', isActive: isVerified),
+        _badge(Icons.star, 'top_volunteer', isActive: topVolunteer),
+        _badge(
+          Icons.local_shipping,
+          'fifty_deliveries',
+          isActive: fiftyDeliveries,
+        ),
+        _badge(Icons.flash_on, 'perfect_streak', isActive: perfectStreak),
       ],
     );
   }
 
-  Widget _badge(IconData icon, String key) {
+  Widget _badge(IconData icon, String key, {bool isActive = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
+        color: isActive ? AppColors.primary.withOpacity(0.12) : Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isActive
+              ? AppColors.primary.withOpacity(0.3)
+              : Colors.grey.shade200,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: AppColors.primary),
+          Icon(
+            icon,
+            size: 16,
+            color: isActive ? AppColors.primary : Colors.grey,
+          ),
           const SizedBox(width: 6),
           Text(
             AppLocalizations.of(context)!.translate(key),
-            style: const TextStyle(fontSize: 12),
+            style: TextStyle(
+              fontSize: 12,
+              color: isActive ? AppColors.primary : Colors.grey,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            ),
           ),
         ],
       ),
@@ -375,6 +522,10 @@ class _VolunteerHomePageState extends State<VolunteerHomePage> {
   //----------------------------------------------------------
 
   Widget _alertBanner() {
+    final bannerText = _newRequests > 0
+        ? 'You have $_newRequests new delivery request${_newRequests == 1 ? '' : 's'} waiting!'
+        : 'No new delivery requests right now.';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -388,7 +539,7 @@ class _VolunteerHomePageState extends State<VolunteerHomePage> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              AppLocalizations.of(context)!.translate('rescue_alert_banner'),
+              bannerText,
               style: TextStyle(
                 color: AppColors.primary,
                 fontSize: 14,
@@ -411,34 +562,59 @@ class _VolunteerHomePageState extends State<VolunteerHomePage> {
 
     if (volunteerId == null) return const SizedBox.shrink();
 
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: BackendService.getVolunteerRescueRequests(volunteerId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const CircularProgressIndicator();
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        final requests = snapshot.data ?? [];
+    if (_error != null) {
+      return Text("Error: $_error", style: const TextStyle(color: Colors.red));
+    }
 
-        if (requests.isEmpty) {
-          return const Text("No active rescue requests nearby.");
-        }
+    if (_rescueRequests.isEmpty) {
+      return const Text("No active rescue requests nearby.");
+    }
 
-        return Column(
-          children: requests
-              .map(
-                (req) => ListTile(
-                  title: Text(req['title'] ?? "Rescue Request"),
-                  trailing: ElevatedButton(
-                    onPressed: () => BackendService.acceptRescueRequest(
-                      req['data']?['orderId'],
-                      volunteerId,
-                    ),
-                    child: const Text("Accept"),
-                  ),
-                ),
-              )
-              .toList(),
-        );
-      },
+    return Column(
+      children: _rescueRequests
+          .map(
+            (req) => ListTile(
+              title: Text(req['title'] ?? "Rescue Request"),
+              subtitle: Text(req['message'] ?? ""),
+              trailing: ElevatedButton(
+                onPressed: () =>
+                    _acceptRescueRequest(req['data']?['orderId'], volunteerId),
+                child: const Text("Accept"),
+              ),
+            ),
+          )
+          .toList(),
     );
+  }
+
+  Future<void> _acceptRescueRequest(String? orderId, String volunteerId) async {
+    if (orderId == null) return;
+
+    try {
+      await BackendService.acceptRescueRequest(orderId, volunteerId);
+      await _fetchVolunteerData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to accept request: $e')));
+    }
+  }
+
+  bool _isToday(dynamic value) {
+    if (value == null) return false;
+    try {
+      final date = DateTime.parse(value.toString());
+      final now = DateTime.now();
+      return date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
+    } catch (_) {
+      return false;
+    }
   }
 }
