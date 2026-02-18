@@ -8,6 +8,10 @@ import 'buyer_notifications_page.dart';
 import '../../../../core/utils/responsive_layout.dart';
 import '../../../data/services/backend_service.dart';
 import '../../../core/localization/app_localizations.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+
+
 
 class BuyerHomePage extends StatefulWidget {
   final Set<String> favouriteIds;
@@ -26,14 +30,18 @@ class BuyerHomePage extends StatefulWidget {
 class _BuyerHomePageState extends State<BuyerHomePage> {
   String _mainCategory = "All";
   String _subCategory = "All";
-  
+
   // Real listings state
   List<Map<String, dynamic>> _realListings = [];
   bool _isLoading = false;
-  
+
   // Live countdown state
   DateTime _now = DateTime.now();
   Timer? _countdownTimer;
+
+  // 🔥 NEW: User location state
+  String _userLocation = "Loading...";
+  String _firebaseUid = "";
 
   final List<String> _mainCategories = ["All", "Free", "Discounted"];
   final List<String> _categories = [
@@ -50,20 +58,55 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   @override
   void initState() {
     super.initState();
+
+    // 🔥 Get Firebase UID
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _firebaseUid = user.uid;
+      _loadUserLocation();
+    }
+
     _fetchRealListings();
+
     // Update countdown every 30 seconds
-    _countdownTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _countdownTimer =
+        Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) {
         setState(() => _now = DateTime.now());
       }
     });
   }
+  Future<void> _loadUserLocation() async {
+  try {
+    final response =
+        await BackendService.getUserProfile(_firebaseUid);
+
+    print("FULL RESPONSE: $response");
+
+    if (mounted) {
+      setState(() {
+        _userLocation =
+            response['user']?['addressText'] ??
+            "Unknown location";
+      });
+    }
+  } catch (e) {
+    print("Location fetch error: $e");
+    if (mounted) {
+      setState(() {
+        _userLocation = "Location unavailable";
+      });
+    }
+  }
+}
+
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
     super.dispose();
   }
+
 
   Future<void> _fetchRealListings() async {
     setState(() => _isLoading = true);
@@ -220,82 +263,97 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      color: AppColors.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      "Koramangala, Bangalore",
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.location_on,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 4),
+
+                  // 🔥 Dynamic Location
+                  Expanded(
+                    child: Text(
+                      _userLocation,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: AppColors.textLight.withOpacity(0.6),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: AppColors.primary,
-                      size: 14,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  "Discover Bangalore",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textDark,
-                    letterSpacing: -0.5,
                   ),
+
+                  const Icon(
+                    Icons.keyboard_arrow_down,
+                    color: AppColors.primary,
+                    size: 14,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+
+              // 🔥 Dynamic Discover Title
+              Text(
+                _userLocation == "Loading..."
+                    ? "Discover"
+                    : "Discover ${_userLocation.split(',').last.trim()}",
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textDark,
+                  letterSpacing: -0.5,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BuyerNotificationsPage(),
-                ),
-              );
-            },
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: AppColors.textDark,
-              size: 22,
-            ),
-            tooltip: "Notifications",
+        ),
+        IconButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BuyerNotificationsPage(),
+              ),
+            );
+          },
+          icon: const Icon(
+            Icons.notifications_outlined,
+            color: AppColors.textDark,
+            size: 22,
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LandingPage()),
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.logout, color: AppColors.textDark, size: 22),
-            tooltip: "Logout",
+          tooltip: "Notifications",
+        ),
+        IconButton(
+          onPressed: () async {
+            await FirebaseAuth.instance.signOut();
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LandingPage()),
+              (route) => false,
+            );
+          },
+          icon: const Icon(
+            Icons.logout,
+            color: AppColors.textDark,
+            size: 22,
           ),
-        ],
-      ),
-    );
-  }
+          tooltip: "Logout",
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildMainCategoryTabs() {
     return Padding(
