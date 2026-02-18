@@ -160,6 +160,9 @@ class BackendService {
 
   static Future<String> uploadImage(Uint8List bytes, String filename) async {
     final url = Uri.parse("$baseUrl/upload");
+    debugPrint("📤 Uploading image to: $url");
+    debugPrint("📁 File: $filename (${bytes.length} bytes)");
+    
     final request = http.MultipartRequest("POST", url);
 
     request.headers.addAll({
@@ -175,36 +178,54 @@ class BackendService {
 
     request.files.add(multipartFile);
 
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['imageUrl'];
-    } else {
-      debugPrint("UPLOAD FAILED with status: ${response.statusCode}");
-      debugPrint("Response Body: ${response.body}");
-      throw Exception("Failed to upload image");
+      debugPrint("📡 Upload response status: ${response.statusCode}");
+      debugPrint("📋 Response body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final imageUrl = data['imageUrl'];
+        debugPrint("✅ Upload successful! URL: $imageUrl");
+        return imageUrl;
+      } else {
+        debugPrint("❌ UPLOAD FAILED with status: ${response.statusCode}");
+        debugPrint("Response: ${response.body}");
+        throw Exception("Upload failed: ${response.statusCode} - ${response.body}");
+      }
+    } catch (e) {
+      debugPrint("💥 Upload exception: $e");
+      rethrow;
     }
   }
 
   static String formatImageUrl(String? path) {
-    if (path == null || path.isEmpty) return "";
-    if (path.startsWith('http')) return path;
+    if (path == null || path.isEmpty) {
+      debugPrint("⚠️ formatImageUrl: path is null or empty");
+      return "";
+    }
+    if (path.startsWith('http')) {
+      debugPrint("✅ formatImageUrl: Already valid URL: $path");
+      return path;
+    }
     
-    // Remote the /api from baseUrl to get the root
+    // Remove the /api from baseUrl to get the root
     final root = baseUrl.replaceAll('/api', '');
-    return "$root$path";
+    final formattedUrl = "$root$path";
+    debugPrint("✅ formatImageUrl: Formatted to $formattedUrl");
+    return formattedUrl;
+  }
+
+  static bool isValidImageUrl(String? url) {
+    final isValid = url != null && url.isNotEmpty && (url.startsWith('http://') || url.startsWith('https://'));
+    debugPrint("🔍 isValidImageUrl($url): $isValid");
+    return isValid;
   }
 
   static Future<void> relistListing(String id, Map<String, dynamic> pickupWindow) async {
     final url = Uri.parse("$baseUrl/listings/relist/$id");
-  static Future<void> updateUserPreferences({
-    required String firebaseUid,
-    String? language,
-    String? uiMode,
-  }) async {
-    final url = Uri.parse("$baseUrl/users/preferences/$firebaseUid");
 
     final response = await http.put(
       url,
@@ -218,6 +239,22 @@ class BackendService {
     if (response.statusCode != 200) {
       final errorBody = jsonDecode(response.body);
       throw Exception(errorBody['error'] ?? "Failed to relist listing");
+    }
+  }
+
+  static Future<void> updateUserPreferences({
+    required String firebaseUid,
+    String? language,
+    String? uiMode,
+  }) async {
+    final url = Uri.parse("$baseUrl/users/preferences/$firebaseUid");
+
+    final response = await http.put(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
       body: jsonEncode({
         if (language != null) "language": language,
         if (uiMode != null) "uiMode": uiMode,
@@ -227,5 +264,48 @@ class BackendService {
     if (response.statusCode != 200) {
       throw Exception("Failed to update user preferences");
     }
+  }
+
+  /// Generate aesthetic food images using Unsplash API
+  /// Query is the food name (e.g., "chocolate cake", "biryani", "salad")
+  static String generateFoodImageUrl(String foodName) {
+    // Using Unsplash API with food-related query
+    // This provides high-quality, royalty-free images
+    final foodImageMap = {
+      'cake': 'photo-1578985545062-69928b1d9587',
+      'biryani': 'photo-1633686326229-1be0e8c8e501',
+      'pizza': 'photo-1604068549290-dea0e4a305ca',
+      'salad': 'photo-1546069901-ba9599a7e63c',
+      'sandwich': 'photo-1509042239860-f550ce710b93',
+      'burger': 'photo-1568901346375-23c9450c58cd',
+      'pasta': 'photo-1621996346565-e3dbc646d9a9',
+      'rice': 'photo-1610974976856-838c11d4c909',
+      'bread': 'photo-1509440159596-0249088772ff',
+      'soup': 'photo-1547592166-23ac45744acd',
+      'curry': 'photo-1601050690597-df0568f70950',
+      'noodles': 'photo-1612874742237-6526221fcf4e',
+      'dessert': 'photo-1578985545062-69928b1d9587',
+      'fruit': 'photo-1599599810694-b5ac4dd64904',
+      'vegetable': 'photo-1512621776951-a57141f2eefd',
+      'cookie': 'photo-1499636136210-6f4ee915583e',
+      'donut': 'photo-1585518419759-4d3f0c4cdf1c',
+      'ice cream': 'photo-1563805042-7684c019e0d0',
+      'coffee': 'photo-1495521821757-a1efb6729352',
+      'tea': 'photo-1597318788039-29eeae5b7228',
+    };
+
+    String imageId = 'photo-1546069901-ba9599a7e63c'; // default: salad
+    
+    for (final entry in foodImageMap.entries) {
+      if (foodName.toLowerCase().contains(entry.key)) {
+        imageId = entry.value;
+        debugPrint("🍽️  generateFoodImageUrl: Matched '$foodName' to $entry.key");
+        break;
+      }
+    }
+
+    final url = 'https://images.unsplash.com/$imageId?q=80&w=800&auto=format&fit=crop';
+    debugPrint("🖼️  Generated food image URL: $url");
+    return url;
   }
 }

@@ -310,25 +310,29 @@ class _VolunteerHomePageState
                 label: AppLocalizations.of(
                         context)!
                     .translate(
-                        'verified_volunteer')),
+                        'verified_volunteer'),
+                color: Colors.green),
             _BadgeChip(
                 icon: Icons.star,
                 label: AppLocalizations.of(
                         context)!
                     .translate(
-                        'top_volunteer')),
+                        'top_volunteer'),
+                color: Colors.amber),
             _BadgeChip(
                 icon: Icons.local_shipping,
                 label: AppLocalizations.of(
                         context)!
                     .translate(
-                        'fifty_deliveries')),
+                        'fifty_deliveries'),
+                color: Colors.blue),
             _BadgeChip(
                 icon: Icons.flash_on,
                 label: AppLocalizations.of(
                         context)!
                     .translate(
-                        'perfect_streak')),
+                        'perfect_streak'),
+                color: Colors.orange),
           ],
         ),
       ],
@@ -416,6 +420,80 @@ class _VolunteerHomePageState
           ],
         ),
       ],
+    );
+  }
+
+  Widget _StatCard({
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _BadgeChip({
+    required String label,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Chip(
+      avatar: Icon(icon, size: 16, color: Colors.white),
+      label: Text(label),
+      backgroundColor: color,
+      labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
+    );
+  }
+
+  Widget _QuickAction({
+    required IconData icon,
+    required String label,
+  }) {
+    return GestureDetector(
+      onTap: () {},
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 20),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }
