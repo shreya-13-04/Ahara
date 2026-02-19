@@ -7,7 +7,7 @@
 
 ---
 
-## 🔐 Authentication & Authorization
+## Authentication & Authorization
 
 All protected routes require:
 
@@ -28,7 +28,7 @@ Role-Based Access Control (RBAC):
 
 # Standard API Response Format
 
-### ✅ Success Response
+### Success Response
 ```json
 {
   "success": true,
@@ -37,7 +37,7 @@ Role-Based Access Control (RBAC):
 }
 ```
 
-### ❌ Error Response
+### Error Response
 ```json
 {
   "success": false,
@@ -47,7 +47,7 @@ Role-Based Access Control (RBAC):
 
 ---
 
-# 1️⃣ Identity & User Management
+# Identity & User Management
 
 ## POST `/api/users/create`
 Create or sync user from Firebase.
@@ -89,7 +89,7 @@ Report suspicious user behavior.
 
 ---
 
-# 2️⃣ Trust & Verification APIs
+# Trust & Verification APIs
 
 ## GET `/api/trust/:userId`
 Fetch trust score of a user.
@@ -111,7 +111,7 @@ Update verification status (Admin only).
 
 ---
 
-# 3️⃣ Consent & Audit APIs
+# Consent & Audit APIs
 
 ## POST `/api/consent`
 Record explicit transaction consent.
@@ -137,7 +137,7 @@ Retrieve audit logs (Admin only).
 
 ---
 
-# 4️⃣ Surplus Listing APIs
+# Surplus Listing APIs
 
 ## POST `/api/listings`
 Create surplus food listing.
@@ -189,7 +189,7 @@ Returns listing lifecycle state:
 
 ---
 
-# 5️⃣ Safety & Hygiene APIs
+# Safety & Hygiene APIs
 
 ## POST `/api/hygiene`
 Submit hygiene declaration.
@@ -215,7 +215,7 @@ Get safety compliance status.
 
 ---
 
-# 6️⃣ Matching & Pickup Coordination APIs
+# Matching & Pickup Coordination APIs
 
 ## POST `/api/match`
 Match buyer with nearby listings.
@@ -258,14 +258,14 @@ Trigger re-matching workflow on failure.
 
 ---
 
-# 7️⃣ Route Optimization APIs
+# Route Optimization APIs
 
 ## GET `/api/routes/:pickupId`
 Returns optimized pickup route with time constraints.
 
 ---
 
-# 8️⃣ Impact & Analytics APIs
+# Impact & Analytics APIs
 
 ## GET `/api/impact/:transactionId`
 Returns environmental impact data.
@@ -289,7 +289,7 @@ Admin analytics dashboard.
 
 ---
 
-# 9️⃣ Pricing & Incentives APIs
+# Pricing & Incentives APIs
 
 ## GET `/api/pricing/rules`
 Get surplus pricing boundaries.
@@ -306,7 +306,7 @@ Retrieve earned badges.
 
 ---
 
-# 🔟 Language & Accessibility APIs
+# Language & Accessibility APIs
 
 ## PUT `/api/preferences/language`
 Update language preference.
@@ -324,7 +324,7 @@ Fetch user preferences.
 
 ---
 
-# 1️⃣1️⃣ Notifications APIs
+# Notifications APIs
 
 ## GET `/api/notifications`
 Retrieve user notifications.
