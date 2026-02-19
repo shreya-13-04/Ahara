@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../services/auth_service.dart';
 import '../services/google_auth_service.dart';
 import '../services/backend_service.dart';
@@ -163,6 +162,8 @@ class AppAuthProvider extends ChangeNotifier {
 
 Future<String?> getUserRole(String uid) async {
   try {
+    if (_auth.currentUser == null) return null;
+
     final doc = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
@@ -199,6 +200,39 @@ Future<String?> getUserRole(String uid) async {
     } catch (e, stackTrace) {
       debugPrint("Mongo Fetch Error: $e");
       debugPrint(stackTrace.toString());
+
+      try {
+        // SELF-HEALING: If not in Mongo, check Firestore
+        final firestoreDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser!.uid)
+            .get();
+
+        if (firestoreDoc.exists) {
+          final userData = firestoreDoc.data()!;
+          debugPrint("📝 Found Firestore data, attempting auto-sync to Mongo...");
+          
+          await BackendService.createUser(
+            firebaseUid: currentUser!.uid,
+            name: userData['name'] ?? currentUser!.displayName ?? "User",
+            email: userData['email'] ?? currentUser!.email ?? "",
+            role: userData['role'] ?? "buyer",
+            phone: userData['phone'] ?? "",
+            location: userData['location'] ?? "",
+          );
+
+          // Retry fetching profile
+          final data = await BackendService.getUserProfile(currentUser!.uid);
+          _mongoUser = data['user'];
+          _mongoProfile = data['profile'];
+          notifyListeners();
+          debugPrint("✅ Auto-sync successful");
+        } else {
+          debugPrint("❌ No Firestore data found for user");
+        }
+      } catch (innerError) {
+        debugPrint("❌ Auto-sync failed: $innerError");
+      }
     }
   }
 
@@ -220,6 +254,39 @@ Future<String?> getUserRole(String uid) async {
       debugPrint(stackTrace.toString());
     }
   }
+
+  //---------------------------------------------------------
+  /// OTP HANDLERS (EXPOSED FOR UI)
+  //---------------------------------------------------------
+
+  Future<Map<String, dynamic>> sendOtp(String phoneNumber) async {
+    _setLoading(true);
+    try {
+      return await _authService.sendOtpSync(phoneNumber);
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<Map<String, dynamic>> verifyOtp(String phoneNumber, String otp) async {
+    _setLoading(true);
+    try {
+      final result = await _authService.verifyOtpSync(phoneNumber, otp);
+      
+      // If user exists and it's a login flow, set the mongoUser
+      if (result['isExistingUser'] == true && result['user'] != null) {
+        _mongoUser = result['user'];
+        _mongoProfile = result['profile'] ?? {}; // Backend should return profile too
+        notifyListeners();
+        debugPrint("📱 Phone Auth: Logged in as ${_mongoUser?['name']}");
+      }
+      
+      return result;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
 
   //---------------------------------------------------------
   /// LOADING HANDLER
