@@ -22,7 +22,6 @@ class _BuyerAddAddressPageState extends State<BuyerAddAddressPage>
   final TextEditingController _pincodeController = TextEditingController();
 
   Map<String, double>? _coordinates;
-  bool _isLoadingLocation = false;
 
   @override
   void initState() {
