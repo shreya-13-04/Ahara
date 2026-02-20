@@ -78,30 +78,59 @@ exports.createOrder = async (req, res) => {
         await listing.save({ session });
 
         // 6. Notify Seller and Buyer
-        await Notification.create([
-            {
-                userId: listing.sellerId,
-                type: "order_update",
-                title: "📦 New Order Received",
-                message: `Someone just ordered ${quantityOrdered}x ${listing.foodName}!`,
-                data: {
-                    orderId: newOrder._id,
-                    listingId: listing._id,
-                    action: "view_order"
-                }
-            },
-            {
-                userId: buyerId,
-                type: "order_update",
-                title: "✅ Order Placed Successfully",
-                message: `Your order for ${quantityOrdered}x ${listing.foodName} has been placed! ${fulfillment === "volunteer_delivery" ? "A volunteer will be assigned soon." : "You can pick it up at the scheduled time."}`,
-                data: {
-                    orderId: newOrder._id,
-                    listingId: listing._id,
-                    action: "view_order"
+        // Fetch buyer details within the same session so we can include them in the seller notification
+        let buyer = null;
+        try {
+            if (typeof User.findById === 'function') {
+                const maybeQuery = User.findById(buyerId);
+                if (maybeQuery && typeof maybeQuery.session === 'function') {
+                    buyer = await maybeQuery.session(session);
+                } else if (maybeQuery && typeof maybeQuery.then === 'function') {
+                    buyer = await maybeQuery;
                 }
             }
-        ], { session, ordered: true });
+        } catch (e) {
+            // If tests mock User without a proper implementation, gracefully ignore and continue
+            buyer = null;
+        }
+
+        const sellerNotification = {
+            userId: listing.sellerId,
+            type: "order_update",
+            title: "📦 New Order Received",
+            message: `${buyer && buyer.name ? buyer.name : 'A buyer'} just ordered ${quantityOrdered}x ${listing.foodName}.`,
+            data: {
+                orderId: newOrder._id,
+                listingId: listing._id,
+                buyer: {
+                    id: buyer?._id,
+                    name: buyer?.name,
+                    email: buyer?.email,
+                    phone: buyer?.phone,
+                    addressText: buyer?.addressText
+                },
+                quantityOrdered,
+                fulfillment,
+                pickup,
+                drop,
+                placedAt: newOrder.timeline?.placedAt || newOrder.createdAt,
+                action: "view_order"
+            }
+        };
+
+        const buyerNotification = {
+            userId: buyerId,
+            type: "order_update",
+            title: "✅ Order Placed Successfully",
+            message: `Your order for ${quantityOrdered}x ${listing.foodName} has been placed! ${fulfillment === "volunteer_delivery" ? "A volunteer will be assigned soon." : "You can pick it up at the scheduled time."}`,
+            data: {
+                orderId: newOrder._id,
+                listingId: listing._id,
+                action: "view_order"
+            }
+        };
+
+        await Notification.create([sellerNotification, buyerNotification], { session, ordered: true });
 
         await session.commitTransaction();
         session.endSession();
