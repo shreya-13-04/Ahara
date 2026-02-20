@@ -12,6 +12,7 @@ const uploadRoutes = require("./routes/uploadRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const otpRoutes = require("./routes/otpRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 const socketService = require("./services/socketService");
 
 console.log("MONGO_URI:", process.env.MONGO_URI);
@@ -48,6 +49,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Serve static uploads with ngrok bypass header (best effort)
 app.use("/api/uploads", (req, res, next) => {
