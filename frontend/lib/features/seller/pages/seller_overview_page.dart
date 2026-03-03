@@ -615,14 +615,14 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: gradientColors,
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
                           color: gradientColors[0].withOpacity(0.22),
@@ -631,16 +631,16 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
                         ),
                       ],
                     ),
-                    child: Icon(icon, color: Colors.white, size: 16),
+                    child: Icon(icon, color: Colors.white, size: 14),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 6),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         value,
                         style: GoogleFonts.inter(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textDark,
                           letterSpacing: -0.2,
