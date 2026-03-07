@@ -61,7 +61,9 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
       final sellerId = authProvider.mongoUser?['_id'];
       if (sellerId != null) {
         try {
-          final orders = await BackendService.getSellerOrders(sellerId.toString());
+          final orders = await BackendService.getSellerOrders(
+            sellerId.toString(),
+          );
           final computed = _computeLocalTrustFromOrders(orders);
           if (mounted) {
             setState(() {
@@ -127,12 +129,15 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          "${AppLocalizations.of(context)!.translate('hello')}, $businessName",
-                          style: GoogleFonts.inter(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textDark,
+                        Expanded(
+                          child: Text(
+                            "${AppLocalizations.of(context)!.translate('hello')}, $businessName",
+                            style: GoogleFonts.inter(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textDark,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         IconButton(
@@ -150,13 +155,21 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                         Expanded(
                           child: _buildInfoCard(
                             context,
-                            title: AppLocalizations.of(context)!.translate('trust_score'),
+                            title: AppLocalizations.of(
+                              context,
+                            )!.translate('trust_score'),
                             value: displayTrust.toString(),
                             subtext: showBackend
-                                ? AppLocalizations.of(context)!.translate('from_backend')
+                                ? AppLocalizations.of(
+                                    context,
+                                  )!.translate('from_backend')
                                 : (_localTrustScore != null
-                                    ? AppLocalizations.of(context)!.translate('earn_trust')
-                                    : AppLocalizations.of(context)!.translate('not_available')),
+                                      ? AppLocalizations.of(
+                                          context,
+                                        )!.translate('earn_trust')
+                                      : AppLocalizations.of(
+                                          context,
+                                        )!.translate('not_available')),
                             icon: Icons.shield_outlined,
                             color: AppColors.secondary,
                           ),
@@ -165,9 +178,13 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                         Expanded(
                           child: _buildInfoCard(
                             context,
-                            title: AppLocalizations.of(context)!.translate('rating'),
+                            title: AppLocalizations.of(
+                              context,
+                            )!.translate('rating'),
                             value: "${rating.toStringAsFixed(1)}/5",
-                            subtext: AppLocalizations.of(context)!.translate('from_customers'),
+                            subtext: AppLocalizations.of(
+                              context,
+                            )!.translate('from_customers'),
                             icon: Icons.star_outlined,
                             color: AppColors.primary,
                           ),
@@ -178,7 +195,9 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                     const SizedBox(height: 40),
 
                     Text(
-                      AppLocalizations.of(context)!.translate('business_impact'),
+                      AppLocalizations.of(
+                        context,
+                      )!.translate('business_impact'),
                       style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -189,7 +208,9 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                     Column(
                       children: [
                         _buildImpactStat(
-                          AppLocalizations.of(context)!.translate('meals_shared'),
+                          AppLocalizations.of(
+                            context,
+                          )!.translate('meals_shared'),
                           "$mealsShared",
                           Icons.lunch_dining,
                         ),
@@ -199,7 +220,9 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                           Icons.eco,
                         ),
                         _buildImpactStat(
-                          AppLocalizations.of(context)!.translate('total_listings'),
+                          AppLocalizations.of(
+                            context,
+                          )!.translate('total_listings'),
                           (mongoProfile?['stats']?['totalListings'] ?? 0)
                               .toString(),
                           Icons.list_alt_outlined,
@@ -318,9 +341,11 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
   int _computeLocalTrustFromOrders(List<Map<String, dynamic>> orders) {
     final terminalOrders = orders.where((o) {
       final status = o['status']?.toString() ?? '';
-      return status == 'delivered' || status == 'completed' || status == 'cancelled';
+      return status == 'delivered' ||
+          status == 'completed' ||
+          status == 'cancelled';
     }).toList();
-    
+
     int total = terminalOrders.length;
     if (total == 0) return 50;
 
@@ -332,12 +357,12 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
       final status = o['status']?.toString() ?? '';
       if (status == 'delivered' || status == 'completed') {
         completed += 1;
-        
+
         DateTime? scheduled;
         DateTime? delivered;
         final pickup = o['pickup'];
         final timeline = o['timeline'];
-        
+
         try {
           if (pickup != null && pickup['scheduledAt'] != null) {
             scheduled = DateTime.tryParse(pickup['scheduledAt'].toString());
@@ -346,7 +371,7 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
             delivered = DateTime.tryParse(timeline['deliveredAt'].toString());
           }
         } catch (_) {}
-        
+
         if (delivered != null) {
           if (scheduled != null) {
             final diff = delivered.difference(scheduled).inMinutes;
@@ -356,7 +381,9 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
           }
         }
       }
-      if (status == 'cancelled' && o['cancellation'] != null && o['cancellation']['cancelledBy'] == 'seller') {
+      if (status == 'cancelled' &&
+          o['cancellation'] != null &&
+          o['cancellation']['cancelledBy'] == 'seller') {
         cancelled += 1;
       }
     }
@@ -365,7 +392,11 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
     final cancelRate = cancelled / total;
     final onTimeRate = completed > 0 ? onTime / completed : 0;
 
-    int score = 50 + (completionRate * 30).round() - (cancelRate * 30).round() + (onTimeRate * 20).round();
+    int score =
+        50 +
+        (completionRate * 30).round() -
+        (cancelRate * 30).round() +
+        (onTimeRate * 20).round();
     if (score > 100) score = 100;
     if (score < 0) score = 0;
     return score;
@@ -404,11 +435,16 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      AppLocalizations.of(context)!.translate('manage_account'),
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(
+                          context,
+                        )!.translate('manage_account'),
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
@@ -424,11 +460,17 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                   controller: controller,
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   children: [
-                    _buildSectionHeader(AppLocalizations.of(context)!.translate('settings').toUpperCase()),
+                    _buildSectionHeader(
+                      AppLocalizations.of(
+                        context,
+                      )!.translate('settings').toUpperCase(),
+                    ),
                     _buildMenuItem(
                       context,
                       Icons.business_outlined,
-                      AppLocalizations.of(context)!.translate('business_details'),
+                      AppLocalizations.of(
+                        context,
+                      )!.translate('business_details'),
                     ),
                     _buildMenuItem(
                       context,
@@ -437,7 +479,11 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                     ),
 
                     const SizedBox(height: 16),
-                    _buildSectionHeader(AppLocalizations.of(context)!.translate('accessibility').toUpperCase()),
+                    _buildSectionHeader(
+                      AppLocalizations.of(
+                        context,
+                      )!.translate('accessibility').toUpperCase(),
+                    ),
                     Consumer<LanguageProvider>(
                       builder: (context, langProvider, child) {
                         return SwitchListTile(
@@ -445,15 +491,19 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                             horizontal: 24,
                           ),
                           title: Text(
-                              AppLocalizations.of(context)!.translate('easy_mode'),
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            AppLocalizations.of(
+                              context,
+                            )!.translate('easy_mode'),
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                             ),
-                            subtitle: Text(
-                              AppLocalizations.of(context)!.translate('easy_mode_desc'),
-                              style: TextStyle(
+                          ),
+                          subtitle: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.translate('easy_mode_desc'),
+                            style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade500,
                             ),
@@ -485,7 +535,11 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                     ),
 
                     const SizedBox(height: 24),
-                    _buildSectionHeader(AppLocalizations.of(context)!.translate('trust_verification').toUpperCase()),
+                    _buildSectionHeader(
+                      AppLocalizations.of(
+                        context,
+                      )!.translate('trust_verification').toUpperCase(),
+                    ),
                     _buildMenuItem(
                       context,
                       Icons.verified_user_outlined,
@@ -493,17 +547,29 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                     ),
 
                     const SizedBox(height: 24),
-                    _buildSectionHeader(AppLocalizations.of(context)!.translate('support').toUpperCase()),
+                    _buildSectionHeader(
+                      AppLocalizations.of(
+                        context,
+                      )!.translate('support').toUpperCase(),
+                    ),
                     _buildMenuItem(
                       context,
                       Icons.help_outline,
-                      AppLocalizations.of(context)!.translate('help_with_orders'),
+                      AppLocalizations.of(
+                        context,
+                      )!.translate('help_with_orders'),
                     ),
-                    _buildMenuItem(context, Icons.info_outline, AppLocalizations.of(context)!.translate('how_it_works')),
+                    _buildMenuItem(
+                      context,
+                      Icons.info_outline,
+                      AppLocalizations.of(context)!.translate('how_it_works'),
+                    ),
                     _buildMenuItem(
                       context,
                       Icons.language_outlined,
-                      AppLocalizations.of(context)!.translate('change_language'),
+                      AppLocalizations.of(
+                        context,
+                      )!.translate('change_language'),
                     ),
 
                     const SizedBox(height: 40),
@@ -533,7 +599,9 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                        child: Text(AppLocalizations.of(context)!.translate('logout')),
+                        child: Text(
+                          AppLocalizations.of(context)!.translate('logout'),
+                        ),
                       ),
                     ),
                   ],
@@ -575,10 +643,18 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
       ),
       trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
       onTap: () {
-        final businessDetails = AppLocalizations.of(context)!.translate('business_details');
-        final getVerified = AppLocalizations.of(context)!.translate('get_verified');
-        final notifications = AppLocalizations.of(context)!.translate('notifications');
-        final changeLanguage = AppLocalizations.of(context)!.translate('change_language');
+        final businessDetails = AppLocalizations.of(
+          context,
+        )!.translate('business_details');
+        final getVerified = AppLocalizations.of(
+          context,
+        )!.translate('get_verified');
+        final notifications = AppLocalizations.of(
+          context,
+        )!.translate('notifications');
+        final changeLanguage = AppLocalizations.of(
+          context,
+        )!.translate('change_language');
         if (title == businessDetails) {
           Navigator.push(
             context,
