@@ -38,7 +38,7 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
       });
 
       final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-      
+
       // Ensure mongoUser is refreshed if not available
       if (authProvider.mongoUser == null) {
         await authProvider.refreshMongoUser();
@@ -88,16 +88,20 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
       final buyerId = order['buyerId'];
       final buyerName = buyerId is Map ? buyerId['name'] ?? 'Buyer' : 'Buyer';
       final listingId = order['listingId'];
-      final listingName =
-          listingId is Map ? listingId['name'] ?? 'Item' : 'Item';
+      final listingName = listingId is Map
+          ? listingId['name'] ?? 'Item'
+          : 'Item';
       final createdAt = order['createdAt'];
-      final DateTime orderDate =
-          createdAt is String ? DateTime.parse(createdAt) : DateTime.now();
+      final DateTime orderDate = createdAt is String
+          ? DateTime.parse(createdAt)
+          : DateTime.now();
 
       if (status == 'pending') {
         activities.add({
           'type': 'order_pending',
-          'title': AppLocalizations.of(context)!.translate("new_order_received"),
+          'title': AppLocalizations.of(
+            context,
+          )!.translate("new_order_received"),
           'subtitle': '$listingName • ${buyerName ?? "Customer"}',
           'timestamp': orderDate,
           'icon': Icons.shopping_basket_rounded,
@@ -178,7 +182,9 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
                         const Center(
                           child: Padding(
                             padding: EdgeInsets.symmetric(vertical: 40),
-                            child: CircularProgressIndicator(color: AppColors.primary),
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
                           ),
                         )
                       else if (_error != null)
@@ -189,7 +195,9 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
                       const SizedBox(height: 32),
 
                       Text(
-                        AppLocalizations.of(context)!.translate("recent_activity"),
+                        AppLocalizations.of(
+                          context,
+                        )!.translate("recent_activity"),
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
                           color: AppColors.textDark,
@@ -241,7 +249,9 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppLocalizations.of(context)!.translate("seller_dashboard"),
+                      AppLocalizations.of(
+                        context,
+                      )!.translate("seller_dashboard"),
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
                         color: AppColors.textDark,
@@ -300,9 +310,7 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
               onPressed: () {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const LandingPage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const LandingPage()),
                   (route) => false,
                 );
               },
@@ -364,7 +372,9 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: Text(AppLocalizations.of(context)!.translate("retry")),
           ),
@@ -377,14 +387,14 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final int crossAxisCount = constraints.maxWidth > 700 ? 4 : 2;
-        final double childAspectRatio = constraints.maxWidth > 700 ? 1.6 : 1.4;
+        final double childAspectRatio = constraints.maxWidth > 700 ? 1.6 : 1.25;
 
         final activeListings = _stats?['activeListings']?.toString() ?? "0";
         final pendingOrders = _stats?['pendingOrders']?.toString() ?? "0";
         final avgRating = _stats?['avgRating']?.toStringAsFixed(1) ?? "0.0";
         final earnings = _stats?['monthlyEarnings'] ?? 0;
-        final earningsText = earnings >= 1000 
-            ? "₹${(earnings / 1000).toStringAsFixed(1)}k" 
+        final earningsText = earnings >= 1000
+            ? "₹${(earnings / 1000).toStringAsFixed(1)}k"
             : "₹$earnings";
 
         return GridView.count(
@@ -431,8 +441,20 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
 
   String _getCurrentMonthLabel() {
     final now = DateTime.now();
-    final months = ['January', 'February', 'March', 'April', 'May', 'June',
-                    'July', 'August', 'September', 'October', 'November', 'December'];
+    final months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return '${months[now.month - 1]} ${now.year}';
   }
 
@@ -566,7 +588,8 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
       final hours = difference.inHours;
       return '$hours ${AppLocalizations.of(context)!.translate("hours_ago") ?? "hours ago"}';
     } else if (difference.inDays == 1) {
-      return AppLocalizations.of(context)!.translate("yesterday") ?? "Yesterday";
+      return AppLocalizations.of(context)!.translate("yesterday") ??
+          "Yesterday";
     } else if (difference.inDays < 7) {
       final days = difference.inDays;
       return '$days ${AppLocalizations.of(context)!.translate("days_ago") ?? "days ago"}';
@@ -609,7 +632,7 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -662,22 +685,6 @@ class _SellerOverviewPageState extends State<SellerOverviewPage> {
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.textLight.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _getCurrentMonthLabel(),
-                          style: TextStyle(
-                            color: AppColors.textLight.withOpacity(0.6),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                       ),
                     ],
                   ),
