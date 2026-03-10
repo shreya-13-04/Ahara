@@ -193,7 +193,6 @@ The frontend is a Flutter-based mobile application.
 ## Development Tools
 - **Git & GitHub** – Version control and collaborative development  
 - **Postman** – API testing and debugging  
-- **Docker (Optional)** – Containerized local setup  
 - **GitHub Actions** – Automated workflows  
 
 ---
