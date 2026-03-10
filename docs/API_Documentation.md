@@ -5,6 +5,24 @@
 
 ---
 
+## Table of Contents
+
+- [1. Overview](#1-overview)
+- [2. Authentication](#2-authentication)
+- [3. Endpoints](#3-endpoints)
+  - [3.1 Users](#31-users)
+  - [3.2 Listings](#32-listings)
+  - [3.3 Orders](#33-orders)
+  - [3.4 Notifications](#34-notifications)
+  - [3.5 Reviews & Trust](#35-reviews--trust)
+  - [3.6 OTP Verification](#36-otp-verification)
+  - [3.7 Payments](#37-payments)
+  - [3.8 Media Upload](#38-media-upload)
+- [4. Data Models](#4-data-models)
+- [5. Rate Limits & Security](#5-rate-limits--security)
+
+---
+
 ## 1. Overview
 
 **What the API does:**  
